@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +18,6 @@ async def chat(
     session: AsyncSession = Depends(get_session),
 ) -> ChatResponse:
     chunks = await RagService(session).retrieve(
-        payload.question, top_k=payload.top_k, resume_id=UUID(payload.resume_id)
+        payload.question, top_k=payload.top_k, resume_id=payload.resume_id
     )
     return AnalysisEngine().answer(payload.question, chunks)

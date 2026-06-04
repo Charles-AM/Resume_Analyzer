@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel
 
 
@@ -12,7 +14,7 @@ class ParsedResume(BaseModel):
 
 
 class ResumeRead(ParsedResume):
-    id: str
+    id: UUID
     filename: str
     raw_text: str
 
@@ -26,7 +28,7 @@ class JobCreate(BaseModel):
 
 
 class JobRead(JobCreate):
-    id: str
+    id: UUID
     required_skills: list[str]
 
     model_config = {"from_attributes": True}

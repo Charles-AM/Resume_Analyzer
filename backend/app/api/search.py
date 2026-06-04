@@ -19,7 +19,7 @@ async def semantic_search(
     chunks = await RagService(session).retrieve(payload.query, top_k=payload.top_k)
     return [
         SearchHit(
-            resume_id=str(chunk.resume_id),
+            resume_id=chunk.resume_id,
             candidate_name=None,
             filename="resume",
             score=round(chunk.score, 4),
