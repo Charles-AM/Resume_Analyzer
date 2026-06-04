@@ -5,12 +5,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#15191f",
-        panel: "#f7f5ef",
-        line: "#d8d3c7",
-        signal: "#2f7d79",
-        accent: "#b84a39",
-        gold: "#c58a2b"
+        ink: "#eff7f6",
+        panel: "#0d141c",
+        line: "rgba(255,255,255,0.14)",
+        signal: "#7ce3ff",
+        accent: "#ee5f56",
+        gold: "#e4b85a",
+        mint: "#49c9a7",
+        void: "#071015"
       }
     }
   },

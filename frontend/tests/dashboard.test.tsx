@@ -13,7 +13,9 @@ jest.mock("recharts", () => ({
 
 test("renders dashboard metrics", () => {
   render(<Dashboard />);
-  expect(screen.getByText("Resume Intelligence")).toBeInTheDocument();
+  expect(screen.getByText("Am i a good match?")).toBeInTheDocument();
+  expect(screen.getByText("Job Match Lab")).toBeInTheDocument();
+  expect(screen.getByLabelText("Job description")).toBeInTheDocument();
   expect(screen.getByText("ATS Score")).toBeInTheDocument();
   expect(screen.getByText("Skill Gaps")).toBeInTheDocument();
 });

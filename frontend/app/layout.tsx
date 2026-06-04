@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI Resume Analyzer",
-  description: "Production-grade resume intelligence platform"
+  title: "Am i a good match?",
+  description: "AI-powered resume and job match intelligence platform"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,4 +1,4 @@
-# AI Resume Analyzer
+# Am i a good match?
 
 Production-grade resume intelligence platform demonstrating modern software engineering, data engineering, AI engineering, and DevOps practices.
 
