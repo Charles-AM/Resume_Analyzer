@@ -17,7 +17,7 @@ rewrites those requests to the Render backend using the `BACKEND_URL` environmen
 - `REDIS_URL`
 - `QDRANT_URL`
 - `JWT_SECRET`
-- `CORS_ORIGINS`, for example `["https://your-netlify-site.netlify.app"]`
+- `CORS_ORIGINS`, for example `https://your-netlify-site.netlify.app`
 - `OPENAI_API_KEY` if using OpenAI embeddings or LLMs
 
 ## Netlify Environment

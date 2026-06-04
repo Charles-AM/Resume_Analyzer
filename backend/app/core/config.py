@@ -1,4 +1,5 @@
 from functools import lru_cache
+import json
 from typing import Literal
 
 from pydantic import Field
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 60
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: str = "http://localhost:3000"
     embedding_provider: Literal["local", "openai"] = "local"
     openai_api_key: str | None = None
     llm_provider: Literal["local", "openai"] = "local"
@@ -26,6 +27,16 @@ class Settings(BaseSettings):
     upload_dir: str = "/var/lib/resume-analyzer/uploads"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        value = self.cors_origins.strip()
+        if not value:
+            return []
+        if value.startswith("["):
+            parsed = json.loads(value)
+            return [str(origin).strip() for origin in parsed if str(origin).strip()]
+        return [origin.strip() for origin in value.split(",") if origin.strip()]
 
 
 @lru_cache
