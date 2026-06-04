@@ -1,6 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export type Analysis = {
+  id: string;
   ats_score: number;
   skill_match_score: number;
   experience_match_score: number;
@@ -11,6 +12,28 @@ export type Analysis = {
   roadmap: { step: number; focus: string; action: string }[];
   certifications: string[];
   portfolio_projects: string[];
+};
+
+export type Resume = {
+  id: string;
+  filename: string;
+  candidate_name: string | null;
+  email: string | null;
+  skills: string[];
+  raw_text: string;
+};
+
+export type Job = {
+  id: string;
+  title: string;
+  company: string | null;
+  description: string;
+  required_skills: string[];
+};
+
+export type TokenResponse = {
+  access_token: string;
+  token_type: string;
 };
 
 export async function api<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
@@ -28,7 +51,21 @@ export async function api<T>(path: string, options: RequestInit = {}, token?: st
   return response.json() as Promise<T>;
 }
 
-export async function uploadResume(file: File, token: string) {
+export async function login(email: string, password: string) {
+  return api<TokenResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+}
+
+export async function register(email: string, password: string, fullName: string) {
+  return api<{ id: string; email: string; full_name: string; role: string }>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password, full_name: fullName })
+  });
+}
+
+export async function uploadResume(file: File, token: string): Promise<Resume> {
   const form = new FormData();
   form.append("file", file);
   const response = await fetch(`${API_URL}/upload/resume`, {
@@ -40,4 +77,24 @@ export async function uploadResume(file: File, token: string) {
     throw new Error(await response.text());
   }
   return response.json();
+}
+
+export async function createJob(
+  payload: { title: string; company?: string; description: string },
+  token: string
+) {
+  return api<Job>("/upload/job", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  }, token);
+}
+
+export async function analyzeResume(
+  payload: { resume_id: string; job_id?: string; job_description?: string },
+  token: string
+) {
+  return api<Analysis>("/analyze", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  }, token);
 }

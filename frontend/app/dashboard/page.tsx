@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BriefcaseBusiness, BrainCircuit, CheckCircle2, FileText, MessageSquare, Radar, Search, SlidersHorizontal, Target, UploadCloud, WandSparkles, Zap } from "lucide-react";
+import { BriefcaseBusiness, BrainCircuit, CheckCircle2, FileText, Loader2, LogIn, MessageSquare, Radar, Search, SlidersHorizontal, Target, UploadCloud, WandSparkles, Zap } from "lucide-react";
 import { Button, Input, Panel, Stat, Textarea } from "@/components/ui";
+import { Analysis, analyzeResume, createJob, login, register, Resume, uploadResume } from "@/lib/api";
 
 const scores = [
   { name: "Jan", ats: 58 },
@@ -14,14 +15,24 @@ const scores = [
 
 export default function Dashboard() {
   const [fileName, setFileName] = useState("senior-data-engineer.pdf");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [query, setQuery] = useState("Find resumes with Python, AWS, and RAG projects");
   const [mode, setMode] = useState("Fit");
+  const [token, setToken] = useState("");
+  const [authMode, setAuthMode] = useState<"login" | "register">("register");
+  const [email, setEmail] = useState("demo@example.com");
+  const [password, setPassword] = useState("DemoPassword123!");
+  const [fullName, setFullName] = useState("Demo User");
+  const [resume, setResume] = useState<Resume | null>(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [status, setStatus] = useState("Create an account or sign in to run a real match analysis.");
+  const [isBusy, setIsBusy] = useState(false);
   const [jobTitle, setJobTitle] = useState("Senior AI Platform Engineer");
   const [company, setCompany] = useState("Nova Systems");
   const [jobDescription, setJobDescription] = useState(
     "We need a senior engineer with Python, FastAPI, AWS, Kubernetes, Terraform, PostgreSQL, Redis, observability, and production RAG experience. The role owns resume intelligence pipelines, vector search, API reliability, and cloud deployment."
   );
-  const gaps = useMemo(() => ["Kubernetes", "Terraform", "OpenTelemetry", "Qdrant"], []);
+  const gaps = analysis?.missing_skills?.length ? analysis.missing_skills : ["Kubernetes", "Terraform", "OpenTelemetry", "Qdrant"];
   const pipeline = ["Extract", "Normalize", "Chunk", "Embed", "Retrieve", "Analyze"];
   const jobKeywords = useMemo(
     () =>
@@ -30,7 +41,85 @@ export default function Dashboard() {
       ),
     [jobDescription]
   );
-  const matchScore = Math.min(96, 58 + jobKeywords.length * 4);
+  const matchScore = analysis?.ats_score ? Math.round(analysis.ats_score) : Math.min(96, 58 + jobKeywords.length * 4);
+  const skillScore = analysis?.skill_match_score ? `${Math.round(analysis.skill_match_score)}%` : "74%";
+  const experienceScore = analysis?.experience_match_score ? `${Math.round(analysis.experience_match_score)}%` : "820ms";
+  const recommendations = analysis?.recommendations?.length
+    ? analysis.recommendations
+    : [
+        "Add a Kubernetes deployment project with measurable reliability outcomes.",
+        "Include Terraform modules for cloud infrastructure provisioning.",
+        "Document tracing, metrics, and alerting work in recent roles."
+      ];
+
+  useEffect(() => {
+    const savedToken = window.localStorage.getItem("resume_analyzer_token");
+    if (savedToken) {
+      setToken(savedToken);
+      setStatus("Signed in. Upload a resume and paste a job description to analyze fit.");
+    }
+  }, []);
+
+  async function handleAuth() {
+    setIsBusy(true);
+    setStatus(authMode === "register" ? "Creating account..." : "Signing in...");
+    try {
+      if (authMode === "register") {
+        await register(email, password, fullName);
+      }
+      const session = await login(email, password);
+      window.localStorage.setItem("resume_analyzer_token", session.access_token);
+      setToken(session.access_token);
+      setStatus("Signed in. Upload a resume and paste a job description to analyze fit.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Authentication failed.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleUpload(file: File) {
+    setSelectedFile(file);
+    setFileName(file.name);
+    if (!token) {
+      setStatus("Resume selected. Sign in before uploading it.");
+      return;
+    }
+    setIsBusy(true);
+    setStatus("Uploading and parsing resume...");
+    try {
+      const uploaded = await uploadResume(file, token);
+      setResume(uploaded);
+      setStatus(`Resume uploaded: ${uploaded.filename}. Paste a job description and analyze.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Resume upload failed.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleAnalyze() {
+    if (!token) {
+      setStatus("Sign in before running analysis.");
+      return;
+    }
+    if (!resume) {
+      setStatus("Upload a resume before running analysis.");
+      return;
+    }
+    setIsBusy(true);
+    setStatus("Creating job and analyzing match...");
+    try {
+      const job = await createJob({ title: jobTitle, company, description: jobDescription }, token);
+      const result = await analyzeResume({ resume_id: resume.id, job_id: job.id }, token);
+      setAnalysis(result);
+      setStatus("Analysis complete. Review your scores, gaps, and recommendations.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Analysis failed.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
 
   return (
     <main className="app-shell">
@@ -65,17 +154,74 @@ export default function Dashboard() {
       <div className="mx-auto grid max-w-7xl gap-5 px-6 py-6 lg:grid-cols-[310px_1fr]">
         <aside className="space-y-4">
           <Panel>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 font-semibold"><LogIn className="h-4 w-4 text-signal" />Account</div>
+              <span className={`rounded-full px-2 py-1 text-xs font-bold ${token ? "bg-mint/15 text-mint" : "bg-gold/15 text-gold"}`}>
+                {token ? "Signed in" : "Required"}
+              </span>
+            </div>
+            {!token ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 rounded-md border border-line bg-white/5 p-1">
+                  {(["register", "login"] as const).map((item) => (
+                    <button
+                      className={`h-9 rounded text-sm font-bold ${authMode === item ? "bg-signal text-void" : "text-ink/60"}`}
+                      key={item}
+                      onClick={() => setAuthMode(item)}
+                    >
+                      {item === "register" ? "Register" : "Login"}
+                    </button>
+                  ))}
+                </div>
+                {authMode === "register" && <Input aria-label="Full name" value={fullName} onChange={(event) => setFullName(event.target.value)} />}
+                <Input aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                <Input aria-label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+                <Button className="w-full" disabled={isBusy} onClick={handleAuth}>
+                  {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Continue
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3 text-sm text-ink/70">
+                <div className="rounded-md border border-line bg-white/5 p-3">{email}</div>
+                <button
+                  className="text-sm font-bold text-signal"
+                  onClick={() => {
+                    window.localStorage.removeItem("resume_analyzer_token");
+                    setToken("");
+                    setResume(null);
+                    setAnalysis(null);
+                    setStatus("Signed out.");
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </Panel>
+          <Panel>
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2 font-semibold"><UploadCloud className="h-4 w-4 text-signal" />Upload</div>
-              <span className="rounded-full bg-mint/15 px-2 py-1 text-xs font-bold text-mint">Ready</span>
+              <span className="rounded-full bg-mint/15 px-2 py-1 text-xs font-bold text-mint">{resume ? "Uploaded" : "Ready"}</span>
             </div>
             <label className="group flex h-44 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-signal/35 bg-signal/[0.06] text-center text-sm transition hover:bg-signal/[0.11]">
               <UploadCloud className="mb-3 h-8 w-8 text-signal transition group-hover:-translate-y-1" />
               <span className="font-bold">Drop PDF or DOCX</span>
               <span className="mt-1 text-xs text-ink/45">Encrypted ingest lane</span>
-              <input className="hidden" type="file" onChange={(event) => setFileName(event.target.files?.[0]?.name || fileName)} />
+              <input
+                className="hidden"
+                type="file"
+                accept=".pdf,.docx,.txt,.md"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    void handleUpload(file);
+                  }
+                }}
+              />
             </label>
             <p className="mt-3 flex items-center gap-2 truncate text-sm font-medium"><FileText className="h-4 w-4 text-gold" />{fileName}</p>
+            {selectedFile && !resume && <p className="mt-2 text-xs text-ink/45">{selectedFile.name} is selected but not uploaded yet.</p>}
           </Panel>
           <Panel>
             <div className="mb-3 flex items-center gap-2 font-semibold"><Search className="h-4 w-4 text-signal" />Search</div>
@@ -103,11 +249,12 @@ export default function Dashboard() {
         </aside>
         <section className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-4">
-            <Stat label="ATS Score" value="81" />
-            <Stat label="Skill Match" value="74%" />
+            <Stat label="ATS Score" value={matchScore} />
+            <Stat label="Skill Match" value={skillScore} />
             <Stat label="Analyses" value="24" />
-            <Stat label="Latency P95" value="820ms" />
+            <Stat label="Experience" value={experienceScore} />
           </div>
+          <div className="rounded-md border border-line bg-white/[0.075] p-4 text-sm text-ink/75 backdrop-blur-xl">{status}</div>
           <Panel>
             <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
               <div>
@@ -136,7 +283,10 @@ export default function Dashboard() {
                   />
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <Button><WandSparkles className="h-4 w-4" />Analyze Match</Button>
+                  <Button disabled={isBusy} onClick={handleAnalyze}>
+                    {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+                    Analyze Match
+                  </Button>
                   <span className="text-sm text-ink/55">Compares resume chunks against role requirements.</span>
                 </div>
               </div>
@@ -164,8 +314,12 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="mt-5 space-y-2 text-sm text-ink/70">
-                  <div className="rounded-md border border-line bg-white/5 p-3">Strong overlap in backend, data, and RAG systems.</div>
-                  <div className="rounded-md border border-line bg-white/5 p-3">Improve proof around Kubernetes, Terraform, and observability.</div>
+                  {(analysis?.strengths?.length ? analysis.strengths : ["Strong overlap in backend, data, and RAG systems."]).slice(0, 2).map((item) => (
+                    <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
+                  ))}
+                  {(analysis?.weaknesses?.length ? analysis.weaknesses : ["Improve proof around Kubernetes, Terraform, and observability."]).slice(0, 2).map((item) => (
+                    <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -195,7 +349,7 @@ export default function Dashboard() {
               </div>
               <h3 className="mt-6 font-semibold">Recommendations</h3>
               <div className="mt-3 space-y-2 text-sm text-ink/72">
-                {["Add a Kubernetes deployment project with measurable reliability outcomes.", "Include Terraform modules for cloud infrastructure provisioning.", "Document tracing, metrics, and alerting work in recent roles."].map((item) => (
+                {recommendations.map((item) => (
                   <div className="flex gap-2 rounded-md border border-line bg-white/5 p-3" key={item}>
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint" />
                     <span>{item}</span>
