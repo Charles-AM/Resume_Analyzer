@@ -38,3 +38,12 @@ Netlify build settings:
 3. Deploy the backend Docker service to Render.
 4. Add `BACKEND_URL` in Netlify and deploy the frontend.
 5. Verify the single Netlify link, `/backend-health`, `/api/v1/openapi.json`, login, upload, analyze, chat, and search.
+
+## Continuous Deployment
+
+- Netlify should deploy the `frontend` package automatically on every push to `main`.
+- Render should enable Auto-Deploy on the backend web service. The included `render.yaml`
+  sets `autoDeploy: true` for blueprint-based setup.
+- The backend Docker image starts with `backend/start.sh`, which runs `alembic upgrade head`
+  before starting Uvicorn on Render's `$PORT`. This keeps database migrations in sync after
+  future GitHub changes.
