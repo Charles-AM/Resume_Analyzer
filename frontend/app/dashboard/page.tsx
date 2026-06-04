@@ -7,32 +7,30 @@ import { Button, Input, Panel, Stat, Textarea } from "@/components/ui";
 import { Analysis, analyzeResume, createJob, login, register, Resume, uploadResume } from "@/lib/api";
 
 const scores = [
-  { name: "Jan", ats: 58 },
-  { name: "Feb", ats: 66 },
-  { name: "Mar", ats: 74 },
-  { name: "Apr", ats: 81 }
+  { name: "Run 1", ats: 0 },
+  { name: "Run 2", ats: 0 },
+  { name: "Run 3", ats: 0 },
+  { name: "Run 4", ats: 0 }
 ];
 
 export default function Dashboard() {
-  const [fileName, setFileName] = useState("senior-data-engineer.pdf");
+  const [fileName, setFileName] = useState("No resume uploaded");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [query, setQuery] = useState("Find resumes with Python, AWS, and RAG projects");
+  const [query, setQuery] = useState("");
   const [mode, setMode] = useState("Fit");
   const [token, setToken] = useState("");
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
-  const [email, setEmail] = useState("demo@example.com");
-  const [password, setPassword] = useState("DemoPassword123!");
-  const [fullName, setFullName] = useState("Demo User");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [resume, setResume] = useState<Resume | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [status, setStatus] = useState("Create an account or sign in to run a real match analysis.");
   const [isBusy, setIsBusy] = useState(false);
-  const [jobTitle, setJobTitle] = useState("Senior AI Platform Engineer");
-  const [company, setCompany] = useState("Nova Systems");
-  const [jobDescription, setJobDescription] = useState(
-    "We need a senior engineer with Python, FastAPI, AWS, Kubernetes, Terraform, PostgreSQL, Redis, observability, and production RAG experience. The role owns resume intelligence pipelines, vector search, API reliability, and cloud deployment."
-  );
-  const gaps = analysis?.missing_skills?.length ? analysis.missing_skills : ["Kubernetes", "Terraform", "OpenTelemetry", "Qdrant"];
+  const [jobTitle, setJobTitle] = useState("");
+  const [company, setCompany] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const gaps = analysis?.missing_skills ?? [];
   const pipeline = ["Extract", "Normalize", "Chunk", "Embed", "Retrieve", "Analyze"];
   const jobKeywords = useMemo(
     () =>
@@ -41,16 +39,12 @@ export default function Dashboard() {
       ),
     [jobDescription]
   );
-  const matchScore = analysis?.ats_score ? Math.round(analysis.ats_score) : Math.min(96, 58 + jobKeywords.length * 4);
-  const skillScore = analysis?.skill_match_score ? `${Math.round(analysis.skill_match_score)}%` : "74%";
-  const experienceScore = analysis?.experience_match_score ? `${Math.round(analysis.experience_match_score)}%` : "820ms";
+  const matchScore = analysis?.ats_score ? Math.round(analysis.ats_score) : null;
+  const skillScore = analysis?.skill_match_score ? `${Math.round(analysis.skill_match_score)}%` : "--";
+  const experienceScore = analysis?.experience_match_score ? `${Math.round(analysis.experience_match_score)}%` : "--";
   const recommendations = analysis?.recommendations?.length
     ? analysis.recommendations
-    : [
-        "Add a Kubernetes deployment project with measurable reliability outcomes.",
-        "Include Terraform modules for cloud infrastructure provisioning.",
-        "Document tracing, metrics, and alerting work in recent roles."
-      ];
+    : ["Upload a resume and run analysis to generate recommendations."];
 
   useEffect(() => {
     const savedToken = window.localStorage.getItem("resume_analyzer_token");
@@ -61,11 +55,19 @@ export default function Dashboard() {
   }, []);
 
   async function handleAuth() {
+    if (!email || !password || (authMode === "register" && !fullName)) {
+      setStatus("Enter your email, password, and name before continuing.");
+      return;
+    }
     setIsBusy(true);
     setStatus(authMode === "register" ? "Creating account..." : "Signing in...");
     try {
       if (authMode === "register") {
-        await register(email, password, fullName);
+        try {
+          await register(email, password, fullName);
+        } catch {
+          setStatus("Account may already exist. Trying login...");
+        }
       }
       const session = await login(email, password);
       window.localStorage.setItem("resume_analyzer_token", session.access_token);
@@ -107,6 +109,10 @@ export default function Dashboard() {
       setStatus("Upload a resume before running analysis.");
       return;
     }
+    if (!jobTitle || !jobDescription) {
+      setStatus("Add a job title and paste the job description before analyzing.");
+      return;
+    }
     setIsBusy(true);
     setStatus("Creating job and analyzing match...");
     try {
@@ -119,6 +125,17 @@ export default function Dashboard() {
     } finally {
       setIsBusy(false);
     }
+  }
+
+  function resetAnalysis() {
+    setSelectedFile(null);
+    setFileName("No resume uploaded");
+    setResume(null);
+    setAnalysis(null);
+    setJobTitle("");
+    setCompany("");
+    setJobDescription("");
+    setStatus(token ? "Ready for a new resume and job match." : "Create an account or sign in to run a real match analysis.");
   }
 
   return (
@@ -147,7 +164,7 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
-          <Button><Zap className="h-4 w-4" />New Analysis</Button>
+          <Button onClick={resetAnalysis}><Zap className="h-4 w-4" />New Analysis</Button>
         </div>
       </header>
       <div className="data-ribbon" />
@@ -173,9 +190,9 @@ export default function Dashboard() {
                     </button>
                   ))}
                 </div>
-                {authMode === "register" && <Input aria-label="Full name" value={fullName} onChange={(event) => setFullName(event.target.value)} />}
-                <Input aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} />
-                <Input aria-label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+                {authMode === "register" && <Input aria-label="Full name" placeholder="Full name" value={fullName} onChange={(event) => setFullName(event.target.value)} />}
+                <Input aria-label="Email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} />
+                <Input aria-label="Password" placeholder="At least 8 characters" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
                 <Button className="w-full" disabled={isBusy} onClick={handleAuth}>
                   {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
                   Continue
@@ -225,7 +242,7 @@ export default function Dashboard() {
           </Panel>
           <Panel>
             <div className="mb-3 flex items-center gap-2 font-semibold"><Search className="h-4 w-4 text-signal" />Search</div>
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} />
+            <Input placeholder="Search resumes after uploading candidates" value={query} onChange={(event) => setQuery(event.target.value)} />
             <Button className="mt-3 w-full"><Radar className="h-4 w-4" />Run Search</Button>
           </Panel>
           <Panel>
@@ -249,7 +266,7 @@ export default function Dashboard() {
         </aside>
         <section className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-4">
-            <Stat label="ATS Score" value={matchScore} />
+            <Stat label="ATS Score" value={matchScore ?? "--"} />
             <Stat label="Skill Match" value={skillScore} />
             <Stat label="Analyses" value="24" />
             <Stat label="Experience" value={experienceScore} />
@@ -266,13 +283,13 @@ export default function Dashboard() {
                     </div>
                     <h2 className="mt-2 text-2xl font-black">Paste a job description and analyze fit</h2>
                   </div>
-                  <span className="hidden rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-bold text-gold sm:inline-flex">
-                    Resume linked
+                  <span className={`hidden rounded-full border px-3 py-1 text-xs font-bold sm:inline-flex ${resume ? "border-mint/30 bg-mint/10 text-mint" : "border-gold/30 bg-gold/10 text-gold"}`}>
+                    {resume ? "Resume linked" : "Upload resume first"}
                   </span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Input aria-label="Job title" value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} />
-                  <Input aria-label="Company" value={company} onChange={(event) => setCompany(event.target.value)} />
+                  <Input aria-label="Job title" placeholder="Job title" value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} />
+                  <Input aria-label="Company" placeholder="Company optional" value={company} onChange={(event) => setCompany(event.target.value)} />
                 </div>
                 <div className="mt-3">
                   <Textarea
@@ -294,30 +311,30 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-bold text-signal">Match preview</div>
-                    <div className="mt-1 text-sm text-ink/55">{company} · {jobTitle}</div>
+                    <div className="mt-1 text-sm text-ink/55">{company || "Company"} · {jobTitle || "Job title"}</div>
                   </div>
                   <div className="grid h-20 w-20 place-items-center rounded-full border border-signal/35 bg-signal/10 text-2xl font-black text-signal">
-                    {matchScore}
+                    {matchScore ?? "--"}
                   </div>
                 </div>
                 <div className="mt-5 h-2 rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-gradient-to-r from-accent via-gold to-mint" style={{ width: `${matchScore}%` }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-accent via-gold to-mint" style={{ width: `${matchScore ?? 0}%` }} />
                 </div>
                 <div className="mt-5">
                   <div className="mb-2 flex items-center gap-2 text-sm font-bold"><Target className="h-4 w-4 text-mint" />Detected role signals</div>
                   <div className="flex flex-wrap gap-2">
-                    {jobKeywords.map((keyword) => (
+                    {jobKeywords.length ? jobKeywords.map((keyword) => (
                       <span className="rounded-md border border-line bg-white/8 px-2.5 py-1.5 text-xs font-bold text-mint" key={keyword}>
                         {keyword}
                       </span>
-                    ))}
+                    )) : <span className="text-xs text-ink/45">Paste a job description to detect role signals.</span>}
                   </div>
                 </div>
                 <div className="mt-5 space-y-2 text-sm text-ink/70">
-                  {(analysis?.strengths?.length ? analysis.strengths : ["Strong overlap in backend, data, and RAG systems."]).slice(0, 2).map((item) => (
+                  {(analysis?.strengths?.length ? analysis.strengths : ["Run analysis to see strengths."]).slice(0, 2).map((item) => (
                     <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
                   ))}
-                  {(analysis?.weaknesses?.length ? analysis.weaknesses : ["Improve proof around Kubernetes, Terraform, and observability."]).slice(0, 2).map((item) => (
+                  {(analysis?.weaknesses?.length ? analysis.weaknesses : ["Run analysis to see improvement areas."]).slice(0, 2).map((item) => (
                     <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
                   ))}
                 </div>
