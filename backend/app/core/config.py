@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     llm_provider: Literal["local", "openai"] = "local"
     rate_limit_per_minute: int = 120
-    upload_dir: str = "/tmp/resume-uploads"
+    upload_dir: str = "/var/lib/resume-analyzer/uploads"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

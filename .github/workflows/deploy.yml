@@ -17,13 +17,15 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set lowercase image namespace
+        run: echo "IMAGE_NAMESPACE=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - uses: docker/build-push-action@v6
         with:
           context: ./backend
           push: true
-          tags: ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+          tags: ghcr.io/${{ env.IMAGE_NAMESPACE }}/backend:${{ github.sha }}
       - uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
-          tags: ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+          tags: ghcr.io/${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
