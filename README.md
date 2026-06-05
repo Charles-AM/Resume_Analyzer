@@ -291,38 +291,3 @@ The frontend currently focuses on the core user journey: authentication, demo
 login, resume upload, job description entry, scoring, and recommendations.
 Search, admin analytics, and trend dashboards are present as backend architecture
 extension points but are intentionally not the primary UI flow.
-
-## Resume Project Summary
-
-`Am i a good match?` is a full-stack AI resume analyzer that compares uploaded
-resumes against target job descriptions, extracting resume text, parsing candidate
-signals, generating embeddings, and producing ATS, skill-match, and
-experience-match scores.
-
-Built and deployed a production-style platform with FastAPI, Next.js,
-PostgreSQL/pgvector, Redis, Docker, CI/CD, Netlify, Render, Neon, and Upstash,
-including JWT auth, ETL, RAG-ready chunking, observability hooks, and
-recruiter-focused recommendations.
-
-## Skills Demonstrated
-
-- Software Engineering: FastAPI, Next.js, TypeScript, Python, REST APIs, clean
-  architecture, service layer, repository pattern, dependency injection.
-- Data Engineering: ETL pipelines, PDF/DOCX text extraction, parsing,
-  normalization, deduplication, PostgreSQL schema design, full-text search,
-  structured candidate data.
-- AI Engineering: embeddings, resume chunking, RAG pipeline design, semantic
-  search, prompt/context assembly, deterministic local embedding provider,
-  AI scoring engine.
-- Backend: SQLAlchemy, Alembic migrations, async API design, Pydantic validation,
-  JWT authentication, password hashing, role-based access foundations.
-- Frontend: React, Tailwind CSS, responsive dashboard UI, file upload workflow,
-  auth flows, interactive analysis reports.
-- DevOps: Docker, Docker Compose, GitHub Actions, CI checks, Bandit, Trivy,
-  Netlify deployment, Render deployment, environment-based configuration.
-- Cloud/Infrastructure: Neon PostgreSQL, Upstash Redis, Qdrant-ready vector
-  storage, Terraform baseline, AWS ECS/RDS/ElastiCache/S3 deployment design.
-- Observability: structured logging, OpenTelemetry instrumentation, Prometheus
-  metrics endpoint, Grafana dashboard setup.
-- Product: ATS scoring, skill-gap analysis, experience-gap detection,
-  recommendation engine, demo account flow, production deployment documentation.
