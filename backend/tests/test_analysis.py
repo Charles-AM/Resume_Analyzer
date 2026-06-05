@@ -58,3 +58,24 @@ def test_analysis_scores_change_with_resume_evidence() -> None:
     assert strong_result["roadmap"]
     assert weak_result["portfolio_projects"]
     assert any("missing terms" in item for item in weak_result["recommendations"])
+
+
+def test_analysis_flags_missing_internship_experience() -> None:
+    job = """
+    Software engineering internship for a student with Python, React, APIs,
+    and practical internship or co-op experience.
+    """
+    resume = _resume(
+        """
+        Computer science student. Built a Python command line project and a React page.
+        Education: BS Computer Science.
+        """,
+        ["Python", "React"],
+        projects=[{"summary": "Python command line project"}],
+    )
+
+    result = AnalysisEngine().analyze(resume, job)
+
+    assert any("internship" in item.lower() for item in result["weaknesses"])
+    assert any("internship" in item.lower() for item in result["recommendations"])
+    assert any("experience" in item["focus"].lower() for item in result["roadmap"])

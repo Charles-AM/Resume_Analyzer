@@ -30,12 +30,10 @@ export default function Dashboard() {
       ),
     [jobDescription]
   );
-  const matchScore = analysis ? Math.round(analysis.ats_score) : 0;
-  const skillScore = analysis ? `${Math.round(analysis.skill_match_score)}%` : "0%";
-  const experienceScore = analysis ? `${Math.round(analysis.experience_match_score)}%` : "0%";
-  const recommendations = analysis?.recommendations?.length
-    ? analysis.recommendations
-    : ["Upload a resume, paste a job description, and run analysis to generate recommendations."];
+  const matchScore = analysis ? Math.round(analysis.ats_score) : null;
+  const skillScore = analysis ? `${Math.round(analysis.skill_match_score)}%` : "--";
+  const experienceScore = analysis ? `${Math.round(analysis.experience_match_score)}%` : "--";
+  const recommendations = analysis?.recommendations ?? [];
   const portfolioProjects = analysis?.portfolio_projects ?? [];
   const certifications = analysis?.certifications ?? [];
   const roadmap = analysis?.roadmap ?? [];
@@ -281,7 +279,7 @@ export default function Dashboard() {
         </aside>
         <section className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-4">
-            <Stat label="ATS Score" value={matchScore} />
+            <Stat label="ATS Score" value={matchScore ?? "--"} />
             <Stat label="Skill Match" value={skillScore} />
             <Stat label="Analyses" value={analysisCount} />
             <Stat label="Experience" value={experienceScore} />
@@ -329,11 +327,11 @@ export default function Dashboard() {
                     <div className="mt-1 text-sm text-ink/55">{company || "Company"} · {jobTitle || "Job title"}</div>
                   </div>
                   <div className="grid h-20 w-20 place-items-center rounded-full border border-signal/35 bg-signal/10 text-2xl font-black text-signal">
-                    {matchScore}
+                    {matchScore ?? "--"}
                   </div>
                 </div>
                 <div className="mt-5 h-2 rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-gradient-to-r from-accent via-gold to-mint" style={{ width: `${matchScore}%` }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-accent via-gold to-mint" style={{ width: `${matchScore ?? 0}%` }} />
                 </div>
                 <div className="mt-5">
                   <div className="mb-2 flex items-center gap-2 text-sm font-bold"><Target className="h-4 w-4 text-mint" />Detected role signals</div>
@@ -345,76 +343,105 @@ export default function Dashboard() {
                     )) : <span className="text-xs text-ink/45">Paste a job description to detect role signals.</span>}
                   </div>
                 </div>
-                <div className="mt-5 space-y-2 text-sm text-ink/70">
-                  {(analysis?.strengths?.length ? analysis.strengths : ["Run analysis to see strengths."]).slice(0, 2).map((item) => (
-                    <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
-                  ))}
-                  {(analysis?.weaknesses?.length ? analysis.weaknesses : ["Run analysis to see improvement areas."]).slice(0, 2).map((item) => (
-                    <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
-                  ))}
-                </div>
+                {analysis ? (
+                  <div className="mt-5 space-y-2 text-sm text-ink/70">
+                    {analysis.strengths.slice(0, 2).map((item) => (
+                      <div className="rounded-md border border-mint/20 bg-mint/5 p-3" key={item}>{item}</div>
+                    ))}
+                    {analysis.weaknesses.slice(0, 2).map((item) => (
+                      <div className="rounded-md border border-gold/25 bg-gold/5 p-3" key={item}>{item}</div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-md border border-line bg-white/5 p-3 text-sm text-ink/55">
+                    Results appear here after you upload a resume, paste a job description,
+                    and run the match analysis.
+                  </div>
+                )}
               </div>
             </div>
           </Panel>
-          <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-            <Panel>
-              <h2 className="text-lg font-bold">Skill Gaps</h2>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {gaps.length ? gaps.map((gap) => <span className="rounded-md border border-line bg-white/8 px-3 py-2 text-sm font-medium text-signal" key={gap}>{gap}</span>) : (
-                  <span className="text-sm text-ink/50">{analysis ? "No missing skills detected for this job." : "Run analysis to see missing skills."}</span>
-                )}
-              </div>
-              {gaps.length > 0 && (
-                <div className="mt-5 space-y-2 text-sm text-ink/70">
-                  {gaps.slice(0, 4).map((gap) => (
-                    <div className="rounded-md border border-line bg-white/5 p-3" key={gap}>
-                      Add one resume bullet, project note, or certification that proves real {gap} experience.
+          {analysis ? (
+            <>
+              <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+                <Panel>
+                  <h2 className="text-lg font-bold">Missing Skills</h2>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {gaps.length ? gaps.map((gap) => <span className="rounded-md border border-line bg-white/8 px-3 py-2 text-sm font-medium text-signal" key={gap}>{gap}</span>) : (
+                      <span className="text-sm text-ink/50">No missing skills detected for this job.</span>
+                    )}
+                  </div>
+                  {gaps.length > 0 && (
+                    <div className="mt-5 space-y-2 text-sm text-ink/70">
+                      {gaps.slice(0, 4).map((gap) => (
+                        <div className="rounded-md border border-line bg-white/5 p-3" key={gap}>
+                          Add one resume bullet, project note, or certification that proves real {gap} experience.
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                </Panel>
+                <Panel>
+                  <h3 className="flex items-center gap-2 font-semibold"><ListChecks className="h-4 w-4 text-signal" />Recommendations</h3>
+                  <div className="mt-3 space-y-2 text-sm text-ink/72">
+                    {recommendations.map((item) => (
+                      <div className="flex gap-2 rounded-md border border-line bg-white/5 p-3" key={item}>
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              </div>
+              <div className="grid gap-5 lg:grid-cols-3">
+                <Panel>
+                  <h3 className="flex items-center gap-2 font-semibold"><Target className="h-4 w-4 text-mint" />Next Steps</h3>
+                  <div className="mt-3 space-y-2 text-sm text-ink/72">
+                    {roadmap.map((item) => (
+                      <div className="rounded-md border border-line bg-white/5 p-3" key={`${item.step}-${item.focus}`}>
+                        <div className="text-xs font-bold uppercase text-signal">Step {item.step}: {item.focus}</div>
+                        <div className="mt-1">{item.action}</div>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+                <Panel>
+                  <h3 className="flex items-center gap-2 font-semibold"><BriefcaseBusiness className="h-4 w-4 text-gold" />Portfolio Ideas</h3>
+                  <div className="mt-3 space-y-2 text-sm text-ink/72">
+                    {portfolioProjects.map((item) => (
+                      <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
+                    ))}
+                  </div>
+                </Panel>
+                <Panel>
+                  <h3 className="flex items-center gap-2 font-semibold"><Award className="h-4 w-4 text-signal" />Certifications</h3>
+                  <div className="mt-3 space-y-2 text-sm text-ink/72">
+                    {certifications.length ? certifications.map((item) => (
+                      <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
+                    )) : (
+                      <div className="rounded-md border border-line bg-white/5 p-3">
+                        No specific certification gap was detected. Focus on measurable resume evidence first.
+                      </div>
+                    )}
+                  </div>
+                </Panel>
+              </div>
+            </>
+          ) : (
+            <Panel>
+              <div className="flex items-start gap-3">
+                <Target className="mt-1 h-5 w-5 text-signal" />
+                <div>
+                  <h2 className="text-lg font-bold">Your match report will appear after analysis</h2>
+                  <p className="mt-2 text-sm text-ink/60">
+                    Upload a resume, paste the job description, then run analysis to see the real
+                    ATS score, missing skills, experience gaps, recommendations, project ideas,
+                    and certification guidance.
+                  </p>
                 </div>
-              )}
-            </Panel>
-            <Panel>
-              <h3 className="flex items-center gap-2 font-semibold"><ListChecks className="h-4 w-4 text-signal" />Recommendations</h3>
-              <div className="mt-3 space-y-2 text-sm text-ink/72">
-                {recommendations.map((item) => (
-                  <div className="flex gap-2 rounded-md border border-line bg-white/5 p-3" key={item}>
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint" />
-                    <span>{item}</span>
-                  </div>
-                ))}
               </div>
             </Panel>
-          </div>
-          <div className="grid gap-5 lg:grid-cols-3">
-            <Panel>
-              <h3 className="flex items-center gap-2 font-semibold"><Target className="h-4 w-4 text-mint" />Next Steps</h3>
-              <div className="mt-3 space-y-2 text-sm text-ink/72">
-                {(roadmap.length ? roadmap : [{ step: 1, focus: "Analyze", action: "Run a resume and job match to generate a personalized roadmap." }]).map((item) => (
-                  <div className="rounded-md border border-line bg-white/5 p-3" key={`${item.step}-${item.focus}`}>
-                    <div className="text-xs font-bold uppercase text-signal">Step {item.step}: {item.focus}</div>
-                    <div className="mt-1">{item.action}</div>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-            <Panel>
-              <h3 className="flex items-center gap-2 font-semibold"><BriefcaseBusiness className="h-4 w-4 text-gold" />Portfolio Ideas</h3>
-              <div className="mt-3 space-y-2 text-sm text-ink/72">
-                {(portfolioProjects.length ? portfolioProjects : ["Run analysis to generate project ideas tied to the job description."]).map((item) => (
-                  <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
-                ))}
-              </div>
-            </Panel>
-            <Panel>
-              <h3 className="flex items-center gap-2 font-semibold"><Award className="h-4 w-4 text-signal" />Certifications</h3>
-              <div className="mt-3 space-y-2 text-sm text-ink/72">
-                {(certifications.length ? certifications : ["Run analysis to see certifications or courses that could close visible gaps."]).map((item) => (
-                  <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
-                ))}
-              </div>
-            </Panel>
-          </div>
+          )}
         </section>
       </div>
       <footer className="mx-auto max-w-7xl px-6 pb-6 text-right text-xs text-ink/35">

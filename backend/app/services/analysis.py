@@ -47,26 +47,28 @@ class AnalysisEngine:
         missing = [job_skills_by_key[key] for key in sorted(job_skills - resume_skills)]
         skill_score = self._skill_score(job_text, resume_text, matched, job_skills)
         experience_score = self._experience_score(resume, job_text, resume_text, skill_score)
+        experience_gaps = self._experience_gaps(resume, job_text, resume_text)
         ats_format_score = self._ats_format_score(resume)
         ats_score = round(skill_score * 0.45 + experience_score * 0.35 + ats_format_score * 0.20, 2)
-        roadmap = self._roadmap(missing)
+        roadmap = self._roadmap(missing, experience_gaps)
         return {
             "ats_score": ats_score,
             "skill_match_score": skill_score,
             "experience_match_score": round(experience_score, 2),
             "missing_skills": missing,
             "strengths": self._strengths(resume, {resume_skills_by_key[key] for key in matched}),
-            "weaknesses": self._weaknesses(resume, missing),
+            "weaknesses": self._weaknesses(resume, missing, experience_gaps),
             "recommendations": self._recommendations(
                 resume,
                 missing,
+                experience_gaps,
                 skill_score,
                 experience_score,
                 ats_format_score,
             ),
             "roadmap": roadmap,
-            "certifications": self._certifications(missing),
-            "portfolio_projects": self._portfolio_projects(missing),
+            "certifications": self._certifications(missing, experience_gaps),
+            "portfolio_projects": self._portfolio_projects(missing, experience_gaps),
         }
 
     def answer(self, question: str, chunks: list[RetrievedChunk]) -> ChatResponse:
@@ -171,6 +173,38 @@ class AnalysisEngine:
         )
         return round(min(100.0, score * 100), 2)
 
+    def _experience_gaps(self, resume: Resume, job_text: str, resume_text: str) -> list[str]:
+        gaps = []
+        job_lower = job_text.lower()
+        resume_lower = resume_text.lower()
+        required_years = self._max_years(job_text)
+        resume_years = self._max_years(resume_text)
+
+        if required_years and resume_years < required_years:
+            gaps.append(
+                f"Job asks for {required_years}+ years, but the resume shows "
+                f"{resume_years or 'no clear'} years."
+            )
+
+        internship_terms = {"intern", "internship", "co-op", "placement"}
+        job_wants_internship = any(term in job_lower for term in internship_terms)
+        resume_has_internship = any(term in resume_lower for term in internship_terms)
+        if job_wants_internship and not resume_has_internship:
+            gaps.append(
+                "Missing visible internship, co-op, placement, or workplace experience "
+                "aligned with this role."
+            )
+
+        if ("entry level" in job_lower or "junior" in job_lower) and not resume.projects:
+            gaps.append(
+                "Entry-level role needs stronger project or practical experience evidence."
+            )
+
+        if not resume.experience and not resume.projects:
+            gaps.append("Resume lacks clear Experience or Projects evidence for the role.")
+
+        return gaps
+
     def _max_years(self, text: str) -> int:
         matches = re.findall(r"(\d{1,2})\+?\s*(?:years|yrs)", text.lower())
         return max((int(match) for match in matches), default=0)
@@ -219,9 +253,15 @@ class AnalysisEngine:
             strengths.append("Project work is present and can support portfolio storytelling")
         return strengths or ["Resume contains parseable structured content"]
 
-    def _weaknesses(self, resume: Resume, missing: list[str]) -> list[str]:
+    def _weaknesses(
+        self,
+        resume: Resume,
+        missing: list[str],
+        experience_gaps: list[str],
+    ) -> list[str]:
         weaknesses = [f"Missing visible evidence for {skill}" for skill in missing[:5]]
-        if len(resume.raw_text) < 1200:
+        weaknesses.extend(experience_gaps[:3])
+        if len(resume.raw_text or "") < 1200:
             weaknesses.append("Resume may be too light on detail for senior screening")
         return weaknesses
 
@@ -229,6 +269,7 @@ class AnalysisEngine:
         self,
         resume: Resume,
         missing: list[str],
+        experience_gaps: list[str],
         skill_score: float,
         experience_score: float,
         ats_format_score: float,
@@ -245,6 +286,15 @@ class AnalysisEngine:
                 "Add a visible skills section with the highest-priority missing terms: "
                 + ", ".join(missing[:5])
                 + "."
+            )
+        if experience_gaps:
+            recommendations.append(
+                "Add internship, co-op, freelance, volunteer, capstone, part-time, "
+                "or project experience that directly proves the job requirements."
+            )
+            recommendations.append(
+                "For each experience gap, add one bullet with the tool used, your action, "
+                "and a measurable result or realistic outcome."
             )
         if skill_score < 70:
             recommendations.append(
@@ -267,8 +317,8 @@ class AnalysisEngine:
             )
         return recommendations
 
-    def _roadmap(self, missing: list[str]) -> list[dict]:
-        if not missing:
+    def _roadmap(self, missing: list[str], experience_gaps: list[str]) -> list[dict]:
+        if not missing and not experience_gaps:
             return [
                 {
                     "step": 1,
@@ -288,16 +338,27 @@ class AnalysisEngine:
                     ),
                 },
             ]
-        return [
-            {
-                "step": index + 1,
-                "focus": skill,
-                "action": f"Build or document one concrete resume bullet that proves {skill}.",
-            }
-            for index, skill in enumerate(missing[:5])
-        ]
+        roadmap = []
+        for gap in experience_gaps[:2]:
+            roadmap.append(
+                {
+                    "step": len(roadmap) + 1,
+                    "focus": "Experience evidence",
+                    "action": gap
+                    + " Add a matching experience, internship, or job-like project bullet.",
+                }
+            )
+        for skill in missing[:5]:
+            roadmap.append(
+                {
+                    "step": len(roadmap) + 1,
+                    "focus": skill,
+                    "action": f"Build or document one concrete resume bullet that proves {skill}.",
+                }
+            )
+        return roadmap
 
-    def _certifications(self, missing: list[str]) -> list[str]:
+    def _certifications(self, missing: list[str], experience_gaps: list[str]) -> list[str]:
         certification_map = {
             "AWS": "AWS Certified Cloud Practitioner or Solutions Architect Associate",
             "Azure": "Microsoft Azure Fundamentals or Azure Administrator Associate",
@@ -312,20 +373,35 @@ class AnalysisEngine:
         return [
             certification_map.get(skill, f"{skill} course, lab, or specialization")
             for skill in missing[:3]
-        ]
+        ] or (
+            ["Internship/job simulation course with a portfolio deliverable"]
+            if experience_gaps
+            else []
+        )
 
-    def _portfolio_projects(self, missing: list[str]) -> list[str]:
-        if not missing:
+    def _portfolio_projects(self, missing: list[str], experience_gaps: list[str]) -> list[str]:
+        if not missing and not experience_gaps:
             return [
                 (
                     "Write a short case study for your strongest role-matching project "
                     "with metrics and architecture notes."
                 )
             ]
-        return [
+        projects = []
+        if experience_gaps:
+            projects.append(
+                "Build a job-like project that mirrors the target role, then document "
+                "requirements, tools, screenshots, and measurable outcomes."
+            )
+            projects.append(
+                "Add a practical internship-style case study showing how you solved a "
+                "business problem from start to finish."
+            )
+        projects.extend(
             (
                 f"Create a production-style {skill} project and add deployment notes, "
                 "screenshots, and measurable outcomes."
             )
             for skill in missing[:3]
-        ]
+        )
+        return projects[:5]
