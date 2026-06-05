@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +13,6 @@ from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserR
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 DEMO_EMAIL = "demo@am-i-a-good-match.app"
-DEMO_PASSWORD = "DemoMatch2026!"
 DEMO_FULL_NAME = "Demo Candidate"
 
 
@@ -37,7 +38,7 @@ async def demo_login(session: AsyncSession = Depends(get_session)) -> TokenRespo
     repo = UserRepository(session)
     user = await repo.get_by_email(DEMO_EMAIL)
     if not user:
-        user = await repo.create(DEMO_EMAIL, DEMO_PASSWORD, DEMO_FULL_NAME)
+        user = await repo.create(DEMO_EMAIL, secrets.token_urlsafe(32), DEMO_FULL_NAME)
     return TokenResponse(access_token=create_access_token(str(user.id), {"role": user.role.value}))
 
 
