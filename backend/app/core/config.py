@@ -38,6 +38,16 @@ class Settings(BaseSettings):
             return [str(origin).strip() for origin in parsed if str(origin).strip()]
         return [origin.strip() for origin in value.split(",") if origin.strip()]
 
+    @property
+    def async_database_url(self) -> str:
+        if self.database_url.startswith("postgresql://"):
+            return self.database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return self.database_url
+
+    @property
+    def migration_database_url(self) -> str:
+        return self.async_database_url.replace("+asyncpg", "").replace("+psycopg", "")
+
 
 @lru_cache
 def get_settings() -> Settings:
