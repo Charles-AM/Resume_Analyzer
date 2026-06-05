@@ -7,6 +7,24 @@ const capabilities = [
   { label: "Secure accounts", Icon: ShieldCheck, value: "Protected" }
 ];
 
+const scoringSteps = [
+  {
+    number: "1",
+    title: "What the system can read",
+    copy: "The checker extracts text from your resume and looks for structured signals like contact details, skills, education, projects, and experience. The easier your resume is to parse, the more confidently it can be compared with a job description."
+  },
+  {
+    number: "2",
+    title: "How well your resume matches the job",
+    copy: "Your resume is compared with the exact role you paste in. The score considers required skills, keywords, years of experience, seniority language, and evidence that you have done similar work before."
+  },
+  {
+    number: "3",
+    title: "What you can improve",
+    copy: "After analysis, the app shows missing skills, strengths, weaknesses, and recommendations so you know which keywords, projects, certifications, or resume bullets to improve."
+  }
+];
+
 export default function Home() {
   return (
     <main className="app-shell">
@@ -18,11 +36,11 @@ export default function Home() {
           Am i a good match?
         </div>
         <div className="flex gap-2">
-          <Link className="rounded-md border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-signal/50" href="/login">
-            Login
+          <Link className="rounded-md border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-signal/50" href="/dashboard">
+            Sign in
           </Link>
           <Link className="rounded-md bg-signal px-4 py-2 text-sm font-semibold text-void shadow-[0_0_28px_rgba(124,227,255,0.22)] transition hover:bg-mint" href="/dashboard">
-            Dashboard
+            Start matching
           </Link>
         </div>
       </nav>
@@ -86,6 +104,30 @@ export default function Home() {
             <div className="h-2 rounded-full bg-white/10">
               <div className="h-full w-0 rounded-full bg-gradient-to-r from-signal via-mint to-gold" />
             </div>
+          </div>
+        </div>
+      </section>
+      <section className="border-t border-line bg-white/[0.035]">
+        <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <div className="text-sm font-bold uppercase text-signal">How the score works</div>
+            <h2 className="mt-3 text-3xl font-black md:text-4xl">Built for real resume checks, not generic advice.</h2>
+            <p className="mt-4 leading-7 text-ink/68">
+              Many companies use applicant tracking systems before a recruiter reads your resume. Those systems scan for readable content, role-specific keywords, and evidence that your background matches the job. This app follows the same idea: it checks how understandable your resume is, compares it with the job you paste in, and gives you a focused action list.
+            </p>
+          </div>
+          <div className="grid gap-4">
+            {scoringSteps.map((step) => (
+              <div className="rounded-md border border-line bg-void/40 p-5" key={step.number}>
+                <div className="flex gap-4">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-signal text-sm font-black text-void">{step.number}</span>
+                  <div>
+                    <h3 className="font-bold">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-ink/65">{step.copy}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

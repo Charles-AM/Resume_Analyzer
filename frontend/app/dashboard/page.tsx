@@ -68,7 +68,9 @@ export default function Dashboard() {
   }
 
   async function handleAuth() {
-    if (!email || !password || (authMode === "register" && !fullName)) {
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedName = fullName.trim();
+    if (!trimmedEmail || !password || (authMode === "register" && !trimmedName)) {
       setStatus("Enter your email, password, and name before continuing.");
       return;
     }
@@ -77,15 +79,17 @@ export default function Dashboard() {
     try {
       if (authMode === "register") {
         try {
-          await register(email, password, fullName);
+          await register(trimmedEmail, password, trimmedName);
         } catch (error) {
-          if (!(error instanceof Error) || !error.message.toLowerCase().includes("already registered")) {
-            throw error;
+          if (error instanceof Error && error.message.toLowerCase().includes("already registered")) {
+            setAuthMode("login");
+            setStatus("That account already exists. Enter the correct password and sign in.");
+            return;
           }
-          setStatus("Account already exists. Signing in with that email...");
+          throw error;
         }
       }
-      const session = await login(email, password);
+      const session = await login(trimmedEmail, password);
       await applySession(session.access_token);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Authentication failed.");
