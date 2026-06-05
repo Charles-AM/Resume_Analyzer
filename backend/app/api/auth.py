@@ -10,6 +10,10 @@ from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserR
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+DEMO_EMAIL = "demo@am-i-a-good-match.app"
+DEMO_PASSWORD = "DemoMatch2026!"
+DEMO_FULL_NAME = "Demo Candidate"
+
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def register(payload: RegisterRequest, session: AsyncSession = Depends(get_session)) -> User:
@@ -25,6 +29,15 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
     user = await UserRepository(session).get_by_email(payload.email)
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    return TokenResponse(access_token=create_access_token(str(user.id), {"role": user.role.value}))
+
+
+@router.post("/demo-login", response_model=TokenResponse)
+async def demo_login(session: AsyncSession = Depends(get_session)) -> TokenResponse:
+    repo = UserRepository(session)
+    user = await repo.get_by_email(DEMO_EMAIL)
+    if not user:
+        user = await repo.create(DEMO_EMAIL, DEMO_PASSWORD, DEMO_FULL_NAME)
     return TokenResponse(access_token=create_access_token(str(user.id), {"role": user.role.value}))
 
 

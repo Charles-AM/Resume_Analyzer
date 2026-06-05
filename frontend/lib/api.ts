@@ -36,6 +36,13 @@ export type TokenResponse = {
   token_type: string;
 };
 
+export type UserRead = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+};
+
 export async function api<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -46,7 +53,27 @@ export async function api<T>(path: string, options: RequestInit = {}, token?: st
     }
   });
   if (!response.ok) {
-    throw new Error(await response.text());
+    const message = await response.text();
+    let errorMessage = message || "Request failed.";
+    try {
+      const parsed = JSON.parse(message) as { detail?: unknown };
+      if (typeof parsed.detail === "string") {
+        errorMessage = parsed.detail;
+      }
+      if (Array.isArray(parsed.detail)) {
+        errorMessage = parsed.detail
+          .map((item) => {
+            if (typeof item === "object" && item && "msg" in item) {
+              return String(item.msg);
+            }
+            return "Invalid input";
+          })
+          .join(", ");
+      }
+    } catch {
+      errorMessage = message || "Request failed.";
+    }
+    throw new Error(errorMessage);
   }
   return response.json() as Promise<T>;
 }
@@ -58,11 +85,21 @@ export async function login(email: string, password: string) {
   });
 }
 
+export async function demoLogin() {
+  return api<TokenResponse>("/auth/demo-login", {
+    method: "POST"
+  });
+}
+
 export async function register(email: string, password: string, fullName: string) {
-  return api<{ id: string; email: string; full_name: string; role: string }>("/auth/register", {
+  return api<UserRead>("/auth/register", {
     method: "POST",
     body: JSON.stringify({ email, password, full_name: fullName })
   });
+}
+
+export async function getCurrentUser(token: string) {
+  return api<UserRead>("/auth/me", {}, token);
 }
 
 export async function uploadResume(file: File, token: string): Promise<Resume> {

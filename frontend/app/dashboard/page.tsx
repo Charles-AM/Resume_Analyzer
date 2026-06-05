@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BriefcaseBusiness, BrainCircuit, CheckCircle2, FileText, Loader2, LogIn, MessageSquare, Radar, Search, SlidersHorizontal, Target, UploadCloud, WandSparkles, Zap } from "lucide-react";
 import { Button, Input, Panel, Stat, Textarea } from "@/components/ui";
-import { Analysis, analyzeResume, createJob, login, register, Resume, uploadResume } from "@/lib/api";
+import { Analysis, analyzeResume, createJob, demoLogin, getCurrentUser, login, register, Resume, uploadResume, UserRead } from "@/lib/api";
 
 const scores = [
   { name: "Run 1", ats: 0 },
@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [currentUser, setCurrentUser] = useState<UserRead | null>(null);
   const [resume, setResume] = useState<Resume | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [status, setStatus] = useState("Create an account or sign in to run a real match analysis.");
@@ -51,8 +52,30 @@ export default function Dashboard() {
     if (savedToken) {
       setToken(savedToken);
       setStatus("Signed in. Upload a resume and paste a job description to analyze fit.");
+      void loadCurrentUser(savedToken);
     }
   }, []);
+
+  async function loadCurrentUser(sessionToken: string) {
+    try {
+      const user = await getCurrentUser(sessionToken);
+      setCurrentUser(user);
+      setEmail(user.email);
+      setFullName(user.full_name);
+    } catch {
+      window.localStorage.removeItem("resume_analyzer_token");
+      setToken("");
+      setCurrentUser(null);
+      setStatus("Your session expired. Sign in again or use the demo account.");
+    }
+  }
+
+  async function applySession(accessToken: string) {
+    window.localStorage.setItem("resume_analyzer_token", accessToken);
+    setToken(accessToken);
+    await loadCurrentUser(accessToken);
+    setStatus("Signed in. Upload a resume and paste a job description to analyze fit.");
+  }
 
   async function handleAuth() {
     if (!email || !password || (authMode === "register" && !fullName)) {
@@ -65,16 +88,31 @@ export default function Dashboard() {
       if (authMode === "register") {
         try {
           await register(email, password, fullName);
-        } catch {
-          setStatus("Account may already exist. Trying login...");
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.toLowerCase().includes("already registered")) {
+            throw error;
+          }
+          setStatus("Account already exists. Signing in with that email...");
         }
       }
       const session = await login(email, password);
-      window.localStorage.setItem("resume_analyzer_token", session.access_token);
-      setToken(session.access_token);
-      setStatus("Signed in. Upload a resume and paste a job description to analyze fit.");
+      await applySession(session.access_token);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Authentication failed.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleDemoLogin() {
+    setIsBusy(true);
+    setStatus("Opening demo workspace...");
+    try {
+      const session = await demoLogin();
+      await applySession(session.access_token);
+      setStatus("Demo account ready. Upload a resume and paste a job description to test the full workflow.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Demo login failed.");
     } finally {
       setIsBusy(false);
     }
@@ -197,15 +235,27 @@ export default function Dashboard() {
                   {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
                   Continue
                 </Button>
+                <button
+                  className="w-full rounded-md border border-signal/35 bg-signal/10 px-3 py-2 text-sm font-bold text-signal transition hover:bg-signal/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isBusy}
+                  onClick={handleDemoLogin}
+                >
+                  Use demo account
+                </button>
               </div>
             ) : (
               <div className="space-y-3 text-sm text-ink/70">
-                <div className="rounded-md border border-line bg-white/5 p-3">{email}</div>
+                <div className="rounded-md border border-line bg-white/5 p-3">
+                  <div className="font-bold text-ink">{currentUser?.full_name || "Signed in user"}</div>
+                  <div className="mt-1 text-xs text-ink/50">{currentUser?.email || email}</div>
+                </div>
                 <button
                   className="text-sm font-bold text-signal"
                   onClick={() => {
                     window.localStorage.removeItem("resume_analyzer_token");
                     setToken("");
+                    setCurrentUser(null);
+                    setPassword("");
                     setResume(null);
                     setAnalysis(null);
                     setStatus("Signed out.");
