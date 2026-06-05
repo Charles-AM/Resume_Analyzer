@@ -49,7 +49,7 @@ class AnalysisEngine:
         experience_score = self._experience_score(resume, job_text, resume_text, skill_score)
         experience_gaps = self._experience_gaps(resume, job_text, resume_text)
         ats_format_score = self._ats_format_score(resume)
-        ats_score = round(skill_score * 0.45 + experience_score * 0.35 + ats_format_score * 0.20, 2)
+        ats_score = round(skill_score * 0.40 + experience_score * 0.35 + ats_format_score * 0.25, 2)
         roadmap = self._roadmap(missing, experience_gaps)
         return {
             "ats_score": ats_score,
@@ -120,13 +120,18 @@ class AnalysisEngine:
         matched_skills: set[str],
         job_skills: set[str],
     ) -> float:
+        keyword_coverage = self._keyword_coverage(job_text, resume_text)
         if job_skills:
-            return round(len(matched_skills) / len(job_skills) * 100, 2)
+            skill_coverage = len(matched_skills) / len(job_skills) * 100
+            return round(skill_coverage * 0.75 + keyword_coverage * 0.25, 2)
+        return round(keyword_coverage, 2)
+
+    def _keyword_coverage(self, job_text: str, resume_text: str) -> float:
         job_keywords = self._keyword_set(job_text)
         if not job_keywords:
             return 0.0
         resume_keywords = self._keyword_set(resume_text)
-        return round(len(job_keywords & resume_keywords) / len(job_keywords) * 100, 2)
+        return len(job_keywords & resume_keywords) / len(job_keywords) * 100
 
     def _experience_score(
         self,
@@ -140,7 +145,7 @@ class AnalysisEngine:
         if required_years:
             years_component = min(1.0, resume_years / required_years) if resume_years else 0.0
         else:
-            years_component = 0.55 if resume.experience else 0.25
+            years_component = 0.65 if resume.experience else 0.25
 
         evidence_terms = {
             "built",
@@ -155,20 +160,27 @@ class AnalysisEngine:
             "users",
         }
         evidence_hits = sum(1 for term in evidence_terms if term in resume_text.lower())
+        quantified_hits = self._quantified_bullets(resume_text)
         evidence_component = min(
             1.0,
-            len(resume.experience or []) * 0.18
-            + len(resume.projects or []) * 0.14
-            + evidence_hits * 0.055
-            + min(len(resume_text), 3500) / 3500 * 0.25,
+            len(resume.experience or []) * 0.14
+            + len(resume.projects or []) * 0.12
+            + evidence_hits * 0.045
+            + quantified_hits * 0.08
+            + min(len(resume_text), 3500) / 3500 * 0.18,
         )
 
+        section_component = self._section_presence(
+            resume_text,
+            ["experience", "projects", "education"],
+        )
         seniority_component = self._seniority_readiness(job_text, resume_text)
         relevance_component = skill_score / 100
         score = (
-            years_component * 0.35
+            years_component * 0.25
             + evidence_component * 0.30
-            + seniority_component * 0.15
+            + section_component * 0.15
+            + seniority_component * 0.10
             + relevance_component * 0.20
         )
         return round(min(100.0, score * 100), 2)
@@ -224,33 +236,66 @@ class AnalysisEngine:
         return min(1.0, resume_hits * 0.35 + leadership_hits * 0.2)
 
     def _ats_format_score(self, resume: Resume) -> float:
-        score = 0.0
         text = resume.raw_text or ""
         lower = text.lower()
+        contact_score = 0.0
         if resume.email:
-            score += 15
+            contact_score += 0.6
         if resume.candidate_name:
-            score += 10
-        if len(resume.skills or []) >= 4:
-            score += 20
-        elif resume.skills:
-            score += 10
-        if any(section in lower for section in ("experience", "work", "employment")):
-            score += 15
-        if any(section in lower for section in ("education", "degree", "university")):
-            score += 10
-        if resume.projects:
-            score += 10
-        if 900 <= len(text) <= 4500:
-            score += 20
-        elif len(text) > 450:
-            score += 10
-        return min(100.0, score)
+            contact_score += 0.4
+
+        sections = ["skills", "experience", "projects", "education"]
+        section_score = self._section_presence(text, sections)
+
+        skill_score = min(1.0, len(resume.skills or []) / 8)
+        project_score = 1.0 if resume.projects else 0.0
+        quantified_score = min(1.0, self._quantified_bullets(text) / 3)
+
+        word_count = len(text.split())
+        if 300 <= word_count <= 850:
+            length_score = 1.0
+        elif 180 <= word_count < 300 or 850 < word_count <= 1100:
+            length_score = 0.7
+        elif word_count:
+            length_score = 0.35
+        else:
+            length_score = 0.0
+
+        parse_score = 1.0 if len(text) > 900 else min(1.0, len(text) / 900)
+        score = (
+            contact_score * 10
+            + section_score * 25
+            + skill_score * 15
+            + project_score * 10
+            + quantified_score * 15
+            + length_score * 15
+            + parse_score * 10
+        )
+        if any(section in lower for section in ("objective", "summary", "profile")):
+            score += 5
+        return min(100.0, round(score, 2))
+
+    def _section_presence(self, text: str, sections: list[str]) -> float:
+        if not sections:
+            return 0.0
+        lower = text.lower()
+        hits = sum(1 for section in sections if re.search(rf"\b{section}\b", lower))
+        return hits / len(sections)
+
+    def _quantified_bullets(self, text: str) -> int:
+        measurement_terms = (
+            r"%|\$|\b\d+[kx]?\b|\busers?\b|\brevenue\b|\blatency\b|\bcost\b|"
+            r"\bperformance\b|\bretention\b|\buptime\b|\bthroughput\b"
+        )
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        return sum(1 for line in lines if re.search(measurement_terms, line.lower()))
 
     def _strengths(self, resume: Resume, matched: set[str]) -> list[str]:
         strengths = [f"Strong match for {skill}" for skill in sorted(matched)[:5]]
         if resume.projects:
             strengths.append("Project work is present and can support portfolio storytelling")
+        if self._quantified_bullets(resume.raw_text or ""):
+            strengths.append("Resume includes measurable outcomes that strengthen credibility")
         return strengths or ["Resume contains parseable structured content"]
 
     def _weaknesses(
@@ -261,6 +306,12 @@ class AnalysisEngine:
     ) -> list[str]:
         weaknesses = [f"Missing visible evidence for {skill}" for skill in missing[:5]]
         weaknesses.extend(experience_gaps[:3])
+        if self._quantified_bullets(resume.raw_text or "") == 0:
+            weaknesses.append(
+                "Resume lacks quantified outcomes such as percentages, users, or impact"
+            )
+        if self._section_presence(resume.raw_text or "", ["skills", "experience", "education"]) < 1:
+            weaknesses.append("Resume is missing one or more standard ATS sections")
         if len(resume.raw_text or "") < 1200:
             weaknesses.append("Resume may be too light on detail for senior screening")
         return weaknesses
@@ -310,6 +361,11 @@ class AnalysisEngine:
             recommendations.append(
                 "Use standard headings such as Skills, Experience, Projects, Education, "
                 "and Certifications so ATS parsers can read the resume."
+            )
+        if self._quantified_bullets(resume.raw_text or "") == 0:
+            recommendations.append(
+                "Add measurable evidence: percentages, number of users, time saved, cost reduced, "
+                "latency improved, tickets resolved, or grades achieved."
             )
         if len(resume.raw_text or "") < 1200:
             recommendations.append(

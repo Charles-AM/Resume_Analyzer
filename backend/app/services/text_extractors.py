@@ -20,9 +20,27 @@ class TextExtractor:
         raise TextExtractionError(f"Unsupported file type: {suffix}")
 
     def _pdf(self, path: Path) -> str:
-        reader = PdfReader(str(path))
-        return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
+        try:
+            reader = PdfReader(str(path))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages).strip()
+        except Exception as exc:
+            raise TextExtractionError(
+                "We could not read this PDF. Try a text-based PDF or DOCX."
+            ) from exc
+        if not text:
+            raise TextExtractionError(
+                "This PDF did not contain readable text. Upload a text-based PDF or DOCX."
+            )
+        return text
 
     def _docx(self, path: Path) -> str:
-        document = Document(str(path))
-        return "\n".join(paragraph.text for paragraph in document.paragraphs).strip()
+        try:
+            document = Document(str(path))
+            text = "\n".join(paragraph.text for paragraph in document.paragraphs).strip()
+        except Exception as exc:
+            raise TextExtractionError(
+                "We could not read this DOCX file. Try exporting it again."
+            ) from exc
+        if not text:
+            raise TextExtractionError("This DOCX did not contain readable resume text.")
+        return text

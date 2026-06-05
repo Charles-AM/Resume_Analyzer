@@ -111,7 +111,17 @@ export async function uploadResume(file: File, token: string): Promise<Resume> {
     body: form
   });
   if (!response.ok) {
-    throw new Error(await response.text());
+    const message = await response.text();
+    let errorMessage = message || "Resume upload failed.";
+    try {
+      const parsed = JSON.parse(message) as { detail?: unknown };
+      if (typeof parsed.detail === "string") {
+        errorMessage = parsed.detail;
+      }
+    } catch {
+      errorMessage = message || "Resume upload failed.";
+    }
+    throw new Error(errorMessage);
   }
   return response.json();
 }

@@ -18,6 +18,7 @@ from app.services.etl import ResumeParser
 from app.services.text_extractors import TextExtractionError, TextExtractor
 
 router = APIRouter(prefix="/upload", tags=["upload"])
+MAX_RESUME_BYTES = 8 * 1024 * 1024
 
 
 @router.post("/resume", response_model=ResumeRead, status_code=status.HTTP_201_CREATED)
@@ -28,18 +29,36 @@ async def upload_resume(
 ) -> Resume:
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in {".pdf", ".docx", ".txt", ".md"}:
-        raise HTTPException(status_code=400, detail="Only PDF, DOCX, TXT, and MD resumes are supported")
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF, DOCX, TXT, and MD resumes are supported",
+        )
+    if file.size and file.size > MAX_RESUME_BYTES:
+        raise HTTPException(status_code=400, detail="Resume file must be smaller than 8 MB")
 
     upload_dir = Path(get_settings().upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
     storage_path = upload_dir / f"{uuid4()}{suffix}"
     with storage_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
+    if storage_path.stat().st_size == 0:
+        storage_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    if storage_path.stat().st_size > MAX_RESUME_BYTES:
+        storage_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Resume file must be smaller than 8 MB")
 
     try:
         raw_text = TextExtractor().extract(storage_path)
     except TextExtractionError as exc:
+        storage_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if len(raw_text.split()) < 40:
+        storage_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=400,
+            detail="We found very little resume text. Upload a fuller resume file.",
+        )
 
     parsed = ResumeParser().parse(raw_text)
     resume = Resume(
@@ -65,7 +84,14 @@ async def upload_resume(
         )
         session.add(chunk)
         await session.flush()
-        session.add(Embedding(chunk_id=chunk.id, provider="local", model=provider.model, vector=vectors[index]))
+        session.add(
+            Embedding(
+                chunk_id=chunk.id,
+                provider="local",
+                model=provider.model,
+                vector=vectors[index],
+            )
+        )
 
     await session.execute(
         text("UPDATE resumes SET search_vector = to_tsvector('english', raw_text) WHERE id = :id"),

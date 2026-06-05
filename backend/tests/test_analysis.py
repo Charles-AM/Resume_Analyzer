@@ -79,3 +79,42 @@ def test_analysis_flags_missing_internship_experience() -> None:
     assert any("internship" in item.lower() for item in result["weaknesses"])
     assert any("internship" in item.lower() for item in result["recommendations"])
     assert any("experience" in item["focus"].lower() for item in result["roadmap"])
+
+
+def test_analysis_rewards_structured_resume_evidence_over_keyword_stuffing() -> None:
+    job = """
+    Backend engineer role requiring Python, FastAPI, PostgreSQL, Redis,
+    Docker, AWS, production APIs, and measurable reliability improvements.
+    """
+    keyword_stuffed = _resume(
+        "Python FastAPI PostgreSQL Redis Docker AWS production APIs reliability.",
+        ["Python", "Fastapi", "Postgresql", "Redis", "Docker", "AWS"],
+    )
+    evidence_based = _resume(
+        """
+        Test Candidate
+        test@example.com
+        Summary
+        Backend engineer building production APIs.
+        Skills
+        Python, FastAPI, PostgreSQL, Redis, Docker, AWS
+        Experience
+        Built FastAPI services for 10k users and improved API latency by 35%.
+        Reduced Redis cache misses by 22% and improved uptime to 99.9%.
+        Projects
+        Deployed a Dockerized PostgreSQL analytics API on AWS with monitoring.
+        Education
+        BS Computer Science
+        """,
+        ["Python", "Fastapi", "Postgresql", "Redis", "Docker", "AWS"],
+        experience=[{"summary": "Backend engineer building production APIs"}],
+        projects=[{"summary": "Dockerized PostgreSQL analytics API"}],
+    )
+
+    engine = AnalysisEngine()
+    thin_result = engine.analyze(keyword_stuffed, job)
+    evidence_result = engine.analyze(evidence_based, job)
+
+    assert evidence_result["ats_score"] > thin_result["ats_score"]
+    assert evidence_result["experience_match_score"] > thin_result["experience_match_score"]
+    assert any("quantified outcomes" in item.lower() for item in thin_result["weaknesses"])

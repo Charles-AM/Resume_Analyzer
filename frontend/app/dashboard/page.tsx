@@ -113,18 +113,27 @@ export default function Dashboard() {
     }
   }
 
-  async function handleUpload(file: File) {
+  function handleFileSelection(file: File) {
     setSelectedFile(file);
     setFileName(file.name);
+    setResume(null);
     setAnalysis(null);
+    setStatus("Resume selected. Click Upload Resume when you are ready.");
+  }
+
+  async function handleUpload() {
+    if (!selectedFile) {
+      setStatus("Choose a PDF, DOCX, TXT, or MD resume before uploading.");
+      return;
+    }
     if (!token) {
-      setStatus("Resume selected. Sign in before uploading it.");
+      setStatus("Sign in before uploading your resume.");
       return;
     }
     setIsBusy(true);
     setStatus("Uploading and parsing resume...");
     try {
-      const uploaded = await uploadResume(file, token);
+      const uploaded = await uploadResume(selectedFile, token);
       setResume(uploaded);
       setStatus(`Resume uploaded: ${uploaded.filename}. Paste a job description and analyze.`);
     } catch (error) {
@@ -268,13 +277,21 @@ export default function Dashboard() {
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   if (file) {
-                    void handleUpload(file);
+                    handleFileSelection(file);
                   }
                 }}
               />
             </label>
             <p className="mt-3 flex items-center gap-2 truncate text-sm font-medium"><FileText className="h-4 w-4 text-gold" />{fileName}</p>
-            {selectedFile && !resume && <p className="mt-2 text-xs text-ink/45">{selectedFile.name} is selected but not uploaded yet.</p>}
+            {selectedFile && !resume && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-ink/45">{selectedFile.name} is selected but not uploaded yet.</p>
+                <Button className="w-full" disabled={isBusy} onClick={handleUpload}>
+                  {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                  Upload Resume
+                </Button>
+              </div>
+            )}
           </Panel>
         </aside>
         <section className="space-y-5">
