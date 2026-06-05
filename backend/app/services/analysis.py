@@ -36,7 +36,10 @@ class AnalysisEngine:
     def analyze(self, resume: Resume, job_description: str | None) -> dict:
         job_text = job_description or ""
         resume_text = resume.raw_text or ""
-        job_skills_by_key = {self._skill_key(skill.name): skill.name for skill in self.parser.extract_skills(job_text)}
+        job_skills_by_key = {
+            self._skill_key(skill.name): skill.name
+            for skill in self.parser.extract_skills(job_text)
+        }
         resume_skills_by_key = {self._skill_key(skill): skill for skill in resume.skills or []}
         job_skills = set(job_skills_by_key)
         resume_skills = set(resume_skills_by_key)
@@ -46,6 +49,7 @@ class AnalysisEngine:
         experience_score = self._experience_score(resume, job_text, resume_text, skill_score)
         ats_format_score = self._ats_format_score(resume)
         ats_score = round(skill_score * 0.45 + experience_score * 0.35 + ats_format_score * 0.20, 2)
+        roadmap = self._roadmap(missing)
         return {
             "ats_score": ats_score,
             "skill_match_score": skill_score,
@@ -53,25 +57,48 @@ class AnalysisEngine:
             "missing_skills": missing,
             "strengths": self._strengths(resume, {resume_skills_by_key[key] for key in matched}),
             "weaknesses": self._weaknesses(resume, missing),
-            "recommendations": self._recommendations(missing),
-            "roadmap": [{"step": index + 1, "focus": skill, "action": f"Build and document a {skill} project"} for index, skill in enumerate(missing[:5])],
-            "certifications": [f"{skill} certification or specialization" for skill in missing[:3]],
-            "portfolio_projects": [f"Production-style {skill} case study" for skill in missing[:3]],
+            "recommendations": self._recommendations(
+                resume,
+                missing,
+                skill_score,
+                experience_score,
+                ats_format_score,
+            ),
+            "roadmap": roadmap,
+            "certifications": self._certifications(missing),
+            "portfolio_projects": self._portfolio_projects(missing),
         }
 
     def answer(self, question: str, chunks: list[RetrievedChunk]) -> ChatResponse:
         context = " ".join(chunk.text for chunk in chunks)
         if "missing" in question.lower() or "poor fit" in question.lower():
-            answer = "The biggest gaps are the skills and experience signals absent from the retrieved resume context. Prioritize adding concrete projects, measurable outcomes, and keywords that match the role."
+            answer = (
+                "The biggest gaps are the skills and experience signals absent from the "
+                "retrieved resume context. Prioritize adding concrete projects, measurable "
+                "outcomes, and keywords that match the role."
+            )
         elif "ats" in question.lower():
-            answer = "Improve ATS compatibility by using standard headings, role-matched skills, measurable impact bullets, and consistent dates/titles."
+            answer = (
+                "Improve ATS compatibility by using standard headings, role-matched skills, "
+                "measurable impact bullets, and consistent dates/titles."
+            )
         else:
-            answer = "Based on the retrieved resume context, strengthen the resume with clearer evidence, quantified outcomes, and job-specific terminology."
+            answer = (
+                "Based on the retrieved resume context, strengthen the resume with clearer "
+                "evidence, quantified outcomes, and job-specific terminology."
+            )
         if context:
             answer += f" Retrieved evidence focused on: {context[:280]}"
         return ChatResponse(
             answer=answer,
-            sources=[{"resume_id": str(chunk.resume_id), "chunk_id": str(chunk.chunk_id), "score": chunk.score} for chunk in chunks],
+            sources=[
+                {
+                    "resume_id": str(chunk.resume_id),
+                    "chunk_id": str(chunk.chunk_id),
+                    "score": chunk.score,
+                }
+                for chunk in chunks
+            ],
         )
 
     def _skill_key(self, skill: str) -> str:
@@ -113,7 +140,18 @@ class AnalysisEngine:
         else:
             years_component = 0.55 if resume.experience else 0.25
 
-        evidence_terms = {"built", "deployed", "led", "managed", "owned", "launched", "improved", "scaled", "production", "users"}
+        evidence_terms = {
+            "built",
+            "deployed",
+            "led",
+            "managed",
+            "owned",
+            "launched",
+            "improved",
+            "scaled",
+            "production",
+            "users",
+        }
         evidence_hits = sum(1 for term in evidence_terms if term in resume_text.lower())
         evidence_component = min(
             1.0,
@@ -144,7 +182,11 @@ class AnalysisEngine:
         if not any(term in job_lower for term in senior_terms):
             return 0.75
         resume_hits = sum(1 for term in senior_terms if term in resume_lower)
-        leadership_hits = sum(1 for term in {"led", "owned", "mentored", "managed", "architected"} if term in resume_lower)
+        leadership_hits = sum(
+            1
+            for term in {"led", "owned", "mentored", "managed", "architected"}
+            if term in resume_lower
+        )
         return min(1.0, resume_hits * 0.35 + leadership_hits * 0.2)
 
     def _ats_format_score(self, resume: Resume) -> float:
@@ -183,6 +225,107 @@ class AnalysisEngine:
             weaknesses.append("Resume may be too light on detail for senior screening")
         return weaknesses
 
-    def _recommendations(self, missing: list[str]) -> list[str]:
-        base = ["Quantify impact in bullets", "Mirror priority job-description terminology", "Add a concise technical skills section"]
-        return base + [f"Add a project or accomplishment demonstrating {skill}" for skill in missing[:5]]
+    def _recommendations(
+        self,
+        resume: Resume,
+        missing: list[str],
+        skill_score: float,
+        experience_score: float,
+        ats_format_score: float,
+    ) -> list[str]:
+        recommendations = [
+            "Tailor the resume to the exact job description before applying.",
+            (
+                "Rewrite bullets to include action, technical scope, measurable result, "
+                "and business impact."
+            ),
+        ]
+        if missing:
+            recommendations.append(
+                "Add a visible skills section with the highest-priority missing terms: "
+                + ", ".join(missing[:5])
+                + "."
+            )
+        if skill_score < 70:
+            recommendations.append(
+                "Mirror important job keywords in real experience bullets, "
+                "not only in a skills list."
+            )
+        if experience_score < 70:
+            recommendations.append(
+                "Add 2-3 bullets that prove ownership, production usage, scale, users, "
+                "revenue, latency, cost, or reliability impact."
+            )
+        if ats_format_score < 75:
+            recommendations.append(
+                "Use standard headings such as Skills, Experience, Projects, Education, "
+                "and Certifications so ATS parsers can read the resume."
+            )
+        if len(resume.raw_text or "") < 1200:
+            recommendations.append(
+                "Expand thin sections with concise project context, tools used, and outcomes."
+            )
+        return recommendations
+
+    def _roadmap(self, missing: list[str]) -> list[dict]:
+        if not missing:
+            return [
+                {
+                    "step": 1,
+                    "focus": "Proof",
+                    "action": "Add stronger metrics to your best matching experience bullets.",
+                },
+                {
+                    "step": 2,
+                    "focus": "Targeting",
+                    "action": "Align your summary and skills section with the role requirements.",
+                },
+                {
+                    "step": 3,
+                    "focus": "Polish",
+                    "action": (
+                        "Check formatting, dates, headings, and repeated keywords before applying."
+                    ),
+                },
+            ]
+        return [
+            {
+                "step": index + 1,
+                "focus": skill,
+                "action": f"Build or document one concrete resume bullet that proves {skill}.",
+            }
+            for index, skill in enumerate(missing[:5])
+        ]
+
+    def _certifications(self, missing: list[str]) -> list[str]:
+        certification_map = {
+            "AWS": "AWS Certified Cloud Practitioner or Solutions Architect Associate",
+            "Azure": "Microsoft Azure Fundamentals or Azure Administrator Associate",
+            "GCP": "Google Cloud Digital Leader or Associate Cloud Engineer",
+            "Kubernetes": "Certified Kubernetes Application Developer",
+            "Terraform": "HashiCorp Terraform Associate",
+            "Postgresql": (
+                "PostgreSQL training focused on indexing, query planning, and performance"
+            ),
+            "Redis": "Redis University RU101 or caching architecture coursework",
+        }
+        return [
+            certification_map.get(skill, f"{skill} course, lab, or specialization")
+            for skill in missing[:3]
+        ]
+
+    def _portfolio_projects(self, missing: list[str]) -> list[str]:
+        if not missing:
+            return [
+                (
+                    "Write a short case study for your strongest role-matching project "
+                    "with metrics and architecture notes."
+                )
+            ]
+        return [
+            (
+                f"Create a production-style {skill} project and add deployment notes, "
+                "screenshots, and measurable outcomes."
+            )
+            for skill in missing[:3]
+        ]

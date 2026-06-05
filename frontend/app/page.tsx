@@ -131,6 +131,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <footer className="mx-auto max-w-7xl px-6 py-5 text-right text-xs text-ink/35">
+        Built by Charles Appiah Manu
+      </footer>
     </main>
   );
 }

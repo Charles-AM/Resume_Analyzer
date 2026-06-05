@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BriefcaseBusiness, BrainCircuit, CheckCircle2, FileText, Loader2, LogIn, Target, UploadCloud, WandSparkles, Zap } from "lucide-react";
+import { Award, BriefcaseBusiness, BrainCircuit, CheckCircle2, FileText, ListChecks, Loader2, LogIn, Target, UploadCloud, WandSparkles, Zap } from "lucide-react";
 import { Button, Input, Panel, Stat, Textarea } from "@/components/ui";
 import { Analysis, analyzeResume, createJob, demoLogin, getCurrentUser, login, register, Resume, uploadResume, UserRead } from "@/lib/api";
 
@@ -36,6 +36,9 @@ export default function Dashboard() {
   const recommendations = analysis?.recommendations?.length
     ? analysis.recommendations
     : ["Upload a resume, paste a job description, and run analysis to generate recommendations."];
+  const portfolioProjects = analysis?.portfolio_projects ?? [];
+  const certifications = analysis?.certifications ?? [];
+  const roadmap = analysis?.roadmap ?? [];
 
   useEffect(() => {
     const savedToken = window.localStorage.getItem("resume_analyzer_token");
@@ -361,9 +364,18 @@ export default function Dashboard() {
                   <span className="text-sm text-ink/50">{analysis ? "No missing skills detected for this job." : "Run analysis to see missing skills."}</span>
                 )}
               </div>
+              {gaps.length > 0 && (
+                <div className="mt-5 space-y-2 text-sm text-ink/70">
+                  {gaps.slice(0, 4).map((gap) => (
+                    <div className="rounded-md border border-line bg-white/5 p-3" key={gap}>
+                      Add one resume bullet, project note, or certification that proves real {gap} experience.
+                    </div>
+                  ))}
+                </div>
+              )}
             </Panel>
             <Panel>
-              <h3 className="mt-6 font-semibold">Recommendations</h3>
+              <h3 className="flex items-center gap-2 font-semibold"><ListChecks className="h-4 w-4 text-signal" />Recommendations</h3>
               <div className="mt-3 space-y-2 text-sm text-ink/72">
                 {recommendations.map((item) => (
                   <div className="flex gap-2 rounded-md border border-line bg-white/5 p-3" key={item}>
@@ -374,8 +386,40 @@ export default function Dashboard() {
               </div>
             </Panel>
           </div>
+          <div className="grid gap-5 lg:grid-cols-3">
+            <Panel>
+              <h3 className="flex items-center gap-2 font-semibold"><Target className="h-4 w-4 text-mint" />Next Steps</h3>
+              <div className="mt-3 space-y-2 text-sm text-ink/72">
+                {(roadmap.length ? roadmap : [{ step: 1, focus: "Analyze", action: "Run a resume and job match to generate a personalized roadmap." }]).map((item) => (
+                  <div className="rounded-md border border-line bg-white/5 p-3" key={`${item.step}-${item.focus}`}>
+                    <div className="text-xs font-bold uppercase text-signal">Step {item.step}: {item.focus}</div>
+                    <div className="mt-1">{item.action}</div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <Panel>
+              <h3 className="flex items-center gap-2 font-semibold"><BriefcaseBusiness className="h-4 w-4 text-gold" />Portfolio Ideas</h3>
+              <div className="mt-3 space-y-2 text-sm text-ink/72">
+                {(portfolioProjects.length ? portfolioProjects : ["Run analysis to generate project ideas tied to the job description."]).map((item) => (
+                  <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
+                ))}
+              </div>
+            </Panel>
+            <Panel>
+              <h3 className="flex items-center gap-2 font-semibold"><Award className="h-4 w-4 text-signal" />Certifications</h3>
+              <div className="mt-3 space-y-2 text-sm text-ink/72">
+                {(certifications.length ? certifications : ["Run analysis to see certifications or courses that could close visible gaps."]).map((item) => (
+                  <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
+                ))}
+              </div>
+            </Panel>
+          </div>
         </section>
       </div>
+      <footer className="mx-auto max-w-7xl px-6 pb-6 text-right text-xs text-ink/35">
+        Built by Charles Appiah Manu
+      </footer>
     </main>
   );
 }

@@ -4,7 +4,12 @@ from app.models.domain import Resume
 from app.services.analysis import AnalysisEngine
 
 
-def _resume(text: str, skills: list[str], experience: list[dict] | None = None, projects: list[dict] | None = None) -> Resume:
+def _resume(
+    text: str,
+    skills: list[str],
+    experience: list[dict] | None = None,
+    projects: list[dict] | None = None,
+) -> Resume:
     return Resume(
         owner_id=uuid4(),
         filename="resume.txt",
@@ -50,3 +55,6 @@ def test_analysis_scores_change_with_resume_evidence() -> None:
     assert strong_result["ats_score"] > weak_result["ats_score"]
     assert strong_result["skill_match_score"] > weak_result["skill_match_score"]
     assert strong_result["experience_match_score"] > weak_result["experience_match_score"]
+    assert strong_result["roadmap"]
+    assert weak_result["portfolio_projects"]
+    assert any("missing terms" in item for item in weak_result["recommendations"])
