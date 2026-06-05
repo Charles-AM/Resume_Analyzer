@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, FileSearch, Gauge, Network, ShieldCheck, Sparkles, UploadCloud } from "lucide-react";
+import { ArrowRight, BarChart3, Gauge, Network, ShieldCheck, Sparkles, UploadCloud } from "lucide-react";
 
 const capabilities = [
   { label: "Upload pipeline", Icon: UploadCloud, value: "PDF + DOCX" },
-  { label: "Semantic retrieval", Icon: FileSearch, value: "Top-k RAG" },
   { label: "ATS analytics", Icon: BarChart3, value: "Fit scoring" },
-  { label: "JWT and RBAC", Icon: ShieldCheck, value: "Protected" }
+  { label: "Secure accounts", Icon: ShieldCheck, value: "Protected" }
 ];
 
 export default function Home() {
@@ -32,20 +31,17 @@ export default function Home() {
         <div className="float-in">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-white/5 px-3 py-2 text-sm text-signal">
             <Network className="h-4 w-4" />
-            RAG-native candidate intelligence
+            Resume-to-job match scoring
           </div>
           <h1 className="max-w-3xl text-5xl font-black leading-tight text-ink md:text-7xl">
             Am i a good match?
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-ink/70">
-            A high-signal cockpit for resume ingestion, vector search, fit scoring, and AI-guided improvement.
+            Upload your resume, paste a job description, and see your ATS score, skill match, experience match, gaps, and next steps.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link className="inline-flex h-11 items-center gap-2 rounded-md bg-signal px-5 text-sm font-bold text-void shadow-[0_0_34px_rgba(124,227,255,0.28)] transition hover:-translate-y-0.5 hover:bg-mint" href="/dashboard">
-              Launch dashboard <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link className="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-white/5 px-5 text-sm font-bold text-ink transition hover:border-signal/50" href="/admin">
-              Admin console
+              Start matching <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
           <div className="mt-10 grid gap-3 sm:grid-cols-2">
@@ -64,20 +60,19 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-semibold text-signal">Live fit analysis</div>
-              <div className="mt-1 text-2xl font-black">Senior AI Engineer</div>
+              <div className="mt-1 text-2xl font-black">Your resume vs. the job</div>
             </div>
             <div className="relative grid h-24 w-24 place-items-center rounded-full border border-signal/30 bg-signal/10">
               <Gauge className="h-8 w-8 text-signal" />
-              <span className="absolute -right-1 -top-1 rounded-full bg-mint px-2 py-1 text-xs font-bold text-void">92</span>
             </div>
           </div>
-          <div className="mt-6 grid grid-cols-3 gap-3 text-center text-sm">
-            <div className="rounded-md border border-line bg-void/40 p-4"><b className="block text-3xl text-signal">92</b>ATS</div>
-            <div className="rounded-md border border-line bg-void/40 p-4"><b className="block text-3xl text-mint">18</b>Skills</div>
-            <div className="rounded-md border border-line bg-void/40 p-4"><b className="block text-3xl text-gold">6</b>Gaps</div>
+          <div className="mt-6 grid gap-3 text-sm sm:grid-cols-3">
+            <div className="rounded-md border border-line bg-void/40 p-4 font-semibold text-signal">ATS score</div>
+            <div className="rounded-md border border-line bg-void/40 p-4 font-semibold text-mint">Skill match</div>
+            <div className="rounded-md border border-line bg-void/40 p-4 font-semibold text-gold">Experience fit</div>
           </div>
           <div className="mt-6 space-y-3">
-            {["Python + AWS evidence found", "Kubernetes missing from projects", "Add RAG deployment case study"].map((item, index) => (
+            {["Upload a PDF or DOCX resume", "Paste the exact job description", "Get scoring and targeted recommendations"].map((item, index) => (
               <div key={item} className="flex items-center gap-3 rounded-md border border-line bg-white/5 p-3 text-sm">
                 <span className="pulse-node h-2.5 w-2.5 rounded-full bg-signal" style={{ animationDelay: `${index * 140}ms` }} />
                 {item}
@@ -86,11 +81,10 @@ export default function Home() {
           </div>
           <div className="mt-6 overflow-hidden rounded-md border border-line bg-void/45 p-4">
             <div className="mb-3 flex items-center justify-between text-xs text-ink/55">
-              <span>Embedding latency</span>
-              <span>142ms</span>
+              <span>Result generated after analysis</span>
             </div>
             <div className="h-2 rounded-full bg-white/10">
-              <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-signal via-mint to-gold" />
+              <div className="h-full w-0 rounded-full bg-gradient-to-r from-signal via-mint to-gold" />
             </div>
           </div>
         </div>

@@ -1,23 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BriefcaseBusiness, BrainCircuit, CheckCircle2, FileText, Loader2, LogIn, MessageSquare, Radar, Search, SlidersHorizontal, Target, UploadCloud, WandSparkles, Zap } from "lucide-react";
+import { BriefcaseBusiness, BrainCircuit, CheckCircle2, FileText, Loader2, LogIn, Target, UploadCloud, WandSparkles, Zap } from "lucide-react";
 import { Button, Input, Panel, Stat, Textarea } from "@/components/ui";
 import { Analysis, analyzeResume, createJob, demoLogin, getCurrentUser, login, register, Resume, uploadResume, UserRead } from "@/lib/api";
-
-const scores = [
-  { name: "Run 1", ats: 0 },
-  { name: "Run 2", ats: 0 },
-  { name: "Run 3", ats: 0 },
-  { name: "Run 4", ats: 0 }
-];
 
 export default function Dashboard() {
   const [fileName, setFileName] = useState("No resume uploaded");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [query, setQuery] = useState("");
-  const [mode, setMode] = useState("Fit");
   const [token, setToken] = useState("");
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
   const [email, setEmail] = useState("");
@@ -26,13 +16,13 @@ export default function Dashboard() {
   const [currentUser, setCurrentUser] = useState<UserRead | null>(null);
   const [resume, setResume] = useState<Resume | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [analysisCount, setAnalysisCount] = useState(0);
   const [status, setStatus] = useState("Create an account or sign in to run a real match analysis.");
   const [isBusy, setIsBusy] = useState(false);
   const [jobTitle, setJobTitle] = useState("");
   const [company, setCompany] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const gaps = analysis?.missing_skills ?? [];
-  const pipeline = ["Extract", "Normalize", "Chunk", "Embed", "Retrieve", "Analyze"];
   const jobKeywords = useMemo(
     () =>
       ["Python", "FastAPI", "AWS", "Kubernetes", "Terraform", "PostgreSQL", "Redis", "RAG", "Observability", "Vector search"].filter((keyword) =>
@@ -40,12 +30,12 @@ export default function Dashboard() {
       ),
     [jobDescription]
   );
-  const matchScore = analysis?.ats_score ? Math.round(analysis.ats_score) : null;
-  const skillScore = analysis?.skill_match_score ? `${Math.round(analysis.skill_match_score)}%` : "--";
-  const experienceScore = analysis?.experience_match_score ? `${Math.round(analysis.experience_match_score)}%` : "--";
+  const matchScore = analysis ? Math.round(analysis.ats_score) : 0;
+  const skillScore = analysis ? `${Math.round(analysis.skill_match_score)}%` : "0%";
+  const experienceScore = analysis ? `${Math.round(analysis.experience_match_score)}%` : "0%";
   const recommendations = analysis?.recommendations?.length
     ? analysis.recommendations
-    : ["Upload a resume and run analysis to generate recommendations."];
+    : ["Upload a resume, paste a job description, and run analysis to generate recommendations."];
 
   useEffect(() => {
     const savedToken = window.localStorage.getItem("resume_analyzer_token");
@@ -121,6 +111,7 @@ export default function Dashboard() {
   async function handleUpload(file: File) {
     setSelectedFile(file);
     setFileName(file.name);
+    setAnalysis(null);
     if (!token) {
       setStatus("Resume selected. Sign in before uploading it.");
       return;
@@ -157,6 +148,7 @@ export default function Dashboard() {
       const job = await createJob({ title: jobTitle, company, description: jobDescription }, token);
       const result = await analyzeResume({ resume_id: resume.id, job_id: job.id }, token);
       setAnalysis(result);
+      setAnalysisCount((count) => count + 1);
       setStatus("Analysis complete. Review your scores, gaps, and recommendations.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Analysis failed.");
@@ -187,20 +179,9 @@ export default function Dashboard() {
               </span>
               <div>
                 <h1 className="text-2xl font-black">Am i a good match?</h1>
-                <p className="text-sm text-ink/60">ETL, embeddings, RAG analysis, and search in one workflow.</p>
+                <p className="text-sm text-ink/60">Upload a resume, paste a job, and get a clear match score.</p>
               </div>
             </div>
-          </div>
-          <div className="hidden rounded-md border border-line bg-white/5 p-1 sm:flex">
-            {["Fit", "Search", "Trends"].map((item) => (
-              <button
-                className={`h-9 rounded px-4 text-sm font-bold transition ${mode === item ? "bg-signal text-void" : "text-ink/65 hover:text-ink"}`}
-                key={item}
-                onClick={() => setMode(item)}
-              >
-                {item}
-              </button>
-            ))}
           </div>
           <Button onClick={resetAnalysis}><Zap className="h-4 w-4" />New Analysis</Button>
         </div>
@@ -290,35 +271,12 @@ export default function Dashboard() {
             <p className="mt-3 flex items-center gap-2 truncate text-sm font-medium"><FileText className="h-4 w-4 text-gold" />{fileName}</p>
             {selectedFile && !resume && <p className="mt-2 text-xs text-ink/45">{selectedFile.name} is selected but not uploaded yet.</p>}
           </Panel>
-          <Panel>
-            <div className="mb-3 flex items-center gap-2 font-semibold"><Search className="h-4 w-4 text-signal" />Search</div>
-            <Input placeholder="Search resumes after uploading candidates" value={query} onChange={(event) => setQuery(event.target.value)} />
-            <Button className="mt-3 w-full"><Radar className="h-4 w-4" />Run Search</Button>
-          </Panel>
-          <Panel>
-            <div className="mb-4 flex items-center gap-2 font-semibold"><SlidersHorizontal className="h-4 w-4 text-signal" />Pipeline</div>
-            <div className="space-y-3">
-              {pipeline.map((step, index) => (
-                <div className="flex items-center gap-3" key={step}>
-                  <span className="pulse-node grid h-7 w-7 place-items-center rounded-full border border-signal/35 bg-signal/10 text-xs font-bold text-signal" style={{ animationDelay: `${index * 120}ms` }}>
-                    {index + 1}
-                  </span>
-                  <div className="flex-1">
-                    <div className="text-sm font-semibold">{step}</div>
-                    <div className="mt-1 h-1 rounded-full bg-white/10">
-                      <div className="h-full rounded-full bg-gradient-to-r from-signal to-mint" style={{ width: `${92 - index * 9}%` }} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
         </aside>
         <section className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-4">
-            <Stat label="ATS Score" value={matchScore ?? "--"} />
+            <Stat label="ATS Score" value={matchScore} />
             <Stat label="Skill Match" value={skillScore} />
-            <Stat label="Analyses" value="24" />
+            <Stat label="Analyses" value={analysisCount} />
             <Stat label="Experience" value={experienceScore} />
           </div>
           <div className="rounded-md border border-line bg-white/[0.075] p-4 text-sm text-ink/75 backdrop-blur-xl">{status}</div>
@@ -364,11 +322,11 @@ export default function Dashboard() {
                     <div className="mt-1 text-sm text-ink/55">{company || "Company"} · {jobTitle || "Job title"}</div>
                   </div>
                   <div className="grid h-20 w-20 place-items-center rounded-full border border-signal/35 bg-signal/10 text-2xl font-black text-signal">
-                    {matchScore ?? "--"}
+                    {matchScore}
                   </div>
                 </div>
                 <div className="mt-5 h-2 rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-gradient-to-r from-accent via-gold to-mint" style={{ width: `${matchScore ?? 0}%` }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-accent via-gold to-mint" style={{ width: `${matchScore}%` }} />
                 </div>
                 <div className="mt-5">
                   <div className="mb-2 flex items-center gap-2 text-sm font-bold"><Target className="h-4 w-4 text-mint" />Detected role signals</div>
@@ -391,29 +349,16 @@ export default function Dashboard() {
               </div>
             </div>
           </Panel>
-          <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-            <Panel>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold">ATS Score Trend</h2>
-                <span className="rounded-full border border-mint/30 bg-mint/10 px-3 py-1 text-xs font-bold text-mint">+23 pts</span>
-              </div>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={scores}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.12)" />
-                    <XAxis dataKey="name" stroke="rgba(239,247,246,0.55)" />
-                    <YAxis stroke="rgba(239,247,246,0.55)" />
-                    <Tooltip />
-                    <Bar dataKey="ats" fill="#7ce3ff" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Panel>
+          <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
             <Panel>
               <h2 className="text-lg font-bold">Skill Gaps</h2>
               <div className="mt-4 flex flex-wrap gap-2">
-                {gaps.map((gap) => <span className="rounded-md border border-line bg-white/8 px-3 py-2 text-sm font-medium text-signal" key={gap}>{gap}</span>)}
+                {gaps.length ? gaps.map((gap) => <span className="rounded-md border border-line bg-white/8 px-3 py-2 text-sm font-medium text-signal" key={gap}>{gap}</span>) : (
+                  <span className="text-sm text-ink/50">{analysis ? "No missing skills detected for this job." : "Run analysis to see missing skills."}</span>
+                )}
               </div>
+            </Panel>
+            <Panel>
               <h3 className="mt-6 font-semibold">Recommendations</h3>
               <div className="mt-3 space-y-2 text-sm text-ink/72">
                 {recommendations.map((item) => (
@@ -425,13 +370,6 @@ export default function Dashboard() {
               </div>
             </Panel>
           </div>
-          <Panel>
-            <div className="mb-3 flex items-center gap-2 font-semibold"><MessageSquare className="h-4 w-4 text-signal" />RAG Chat</div>
-            <div className="rounded-md border border-line bg-white/5 p-4 text-sm text-ink/75">Why am I a poor fit?</div>
-            <div className="mt-3 rounded-md border border-signal/25 bg-signal/10 p-4 text-sm leading-6 text-ink/80">
-              The resume under-represents platform operations. Add projects that prove Kubernetes, Terraform, and observability experience.
-            </div>
-          </Panel>
         </section>
       </div>
     </main>
