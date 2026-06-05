@@ -9,6 +9,6 @@ test("renders dashboard metrics", () => {
   expect(screen.getByText("Job Match Lab")).toBeInTheDocument();
   expect(screen.getByLabelText("Job description")).toBeInTheDocument();
   expect(screen.getByText("ATS Score")).toBeInTheDocument();
-  expect(screen.getAllByText("--")).toHaveLength(3);
+  expect(screen.getAllByText("--")).toHaveLength(4);
   expect(screen.getByText("Your match report will appear after analysis")).toBeInTheDocument();
 });
