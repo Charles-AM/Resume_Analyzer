@@ -46,7 +46,7 @@ class Settings(BaseSettings):
 
     @property
     def migration_database_url(self) -> str:
-        return self.async_database_url.replace("+asyncpg", "").replace("+psycopg", "")
+        return self.async_database_url.replace("+asyncpg", "+psycopg")
 
 
 @lru_cache
