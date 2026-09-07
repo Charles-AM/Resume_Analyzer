@@ -8,8 +8,9 @@
 - Redis: Upstash Redis.
 - Vector store: Qdrant Cloud, or pgvector using the included schema.
 
-Netlify is the single user-facing link. The frontend calls `/api/v1/*`, and `frontend/next.config.ts`
-rewrites those requests to the Render backend using the `BACKEND_URL` environment variable.
+Netlify is the single user-facing link. The frontend calls `/api/v1/*`, and the explicit
+proxy in `frontend/netlify.toml` forwards those requests to the Render backend. The
+`BACKEND_URL` rewrite in `frontend/next.config.ts` remains available for other hosts.
 
 ## Backend Environment
 
@@ -22,7 +23,7 @@ rewrites those requests to the Render backend using the `BACKEND_URL` environmen
 
 ## Netlify Environment
 
-- `BACKEND_URL`, for example `https://your-render-service.onrender.com`
+- `BACKEND_URL`, optional when using the included Netlify proxy
 - `NEXT_PUBLIC_API_URL=/api/v1`
 
 Netlify build settings:
@@ -36,7 +37,7 @@ Netlify build settings:
 1. Merge a passing PR into `main`.
 2. Run Alembic migrations against Neon.
 3. Deploy the backend Docker service to Render.
-4. Add `BACKEND_URL` in Netlify and deploy the frontend.
+4. Deploy the frontend; the included Netlify proxy targets the Render service.
 5. Verify the single Netlify link, `/backend-health`, `/api/v1/openapi.json`, login, upload, analyze, chat, and search.
 
 ## Continuous Deployment

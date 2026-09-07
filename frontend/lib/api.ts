@@ -48,6 +48,29 @@ export type CoachResponse = {
   sources: { resume_id: string; chunk_id: string; score: number }[];
 };
 
+async function responseError(response: Response, fallback: string): Promise<Error> {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("text/html")) {
+    return new Error("The application service is temporarily unavailable. Please try again in a moment.");
+  }
+
+  const message = await response.text();
+  let errorMessage = message || fallback;
+  try {
+    const parsed = JSON.parse(message) as { detail?: unknown };
+    if (typeof parsed.detail === "string") {
+      errorMessage = parsed.detail;
+    } else if (Array.isArray(parsed.detail)) {
+      errorMessage = parsed.detail
+        .map((item) => typeof item === "object" && item && "msg" in item ? String(item.msg) : "Invalid input")
+        .join(", ");
+    }
+  } catch {
+    errorMessage = message || fallback;
+  }
+  return new Error(errorMessage);
+}
+
 export async function api<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -58,27 +81,7 @@ export async function api<T>(path: string, options: RequestInit = {}, token?: st
     }
   });
   if (!response.ok) {
-    const message = await response.text();
-    let errorMessage = message || "Request failed.";
-    try {
-      const parsed = JSON.parse(message) as { detail?: unknown };
-      if (typeof parsed.detail === "string") {
-        errorMessage = parsed.detail;
-      }
-      if (Array.isArray(parsed.detail)) {
-        errorMessage = parsed.detail
-          .map((item) => {
-            if (typeof item === "object" && item && "msg" in item) {
-              return String(item.msg);
-            }
-            return "Invalid input";
-          })
-          .join(", ");
-      }
-    } catch {
-      errorMessage = message || "Request failed.";
-    }
-    throw new Error(errorMessage);
+    throw await responseError(response, "Request failed.");
   }
   return response.json() as Promise<T>;
 }
@@ -116,17 +119,7 @@ export async function uploadResume(file: File, token: string): Promise<Resume> {
     body: form
   });
   if (!response.ok) {
-    const message = await response.text();
-    let errorMessage = message || "Resume upload failed.";
-    try {
-      const parsed = JSON.parse(message) as { detail?: unknown };
-      if (typeof parsed.detail === "string") {
-        errorMessage = parsed.detail;
-      }
-    } catch {
-      errorMessage = message || "Resume upload failed.";
-    }
-    throw new Error(errorMessage);
+    throw await responseError(response, "Resume upload failed.");
   }
   return response.json();
 }
