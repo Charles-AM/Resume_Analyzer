@@ -1,12 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Award, BriefcaseBusiness, BrainCircuit, CheckCircle2, FileText, ListChecks, Loader2, LogIn, Target, UploadCloud, WandSparkles, Zap } from "lucide-react";
+import { ArrowLeft, BarChart3, BrainCircuit, Check, CircleHelp, FileText, Fingerprint, Gauge, History, LayoutDashboard, Loader2, LogIn, MessageSquareText, RotateCcw, Sparkles, Target, UploadCloud, WandSparkles } from "lucide-react";
 import { Button, Input, Panel, Stat, Textarea } from "@/components/ui";
-import { Analysis, analyzeResume, createJob, demoLogin, getCurrentUser, login, register, Resume, uploadResume, UserRead } from "@/lib/api";
+import { Analysis, analyzeResume, askResumeCoach, createJob, demoLogin, getCurrentUser, login, register, Resume, uploadResume, UserRead } from "@/lib/api";
+
+const sampleJob = {
+  title: "Senior Backend Engineer",
+  company: "Northstar Labs",
+  description: "We are looking for a Senior Backend Engineer with 5+ years of experience building production APIs. You will work with Python, FastAPI, PostgreSQL, Redis, AWS, Docker, Kubernetes, Terraform, observability, vector search, and RAG systems. You have led technical projects, improved system performance, and partnered with product teams to deliver measurable outcomes for users."
+};
 
 export default function Dashboard() {
-  const [fileName, setFileName] = useState("No resume uploaded");
+  const [fileName, setFileName] = useState("No file selected");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [token, setToken] = useState("");
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
@@ -16,454 +23,115 @@ export default function Dashboard() {
   const [currentUser, setCurrentUser] = useState<UserRead | null>(null);
   const [resume, setResume] = useState<Resume | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
-  const [analysisCount, setAnalysisCount] = useState(0);
-  const [status, setStatus] = useState("Create an account or sign in to run a real match analysis.");
+  const [status, setStatus] = useState("Sign in, add your resume, and choose a role to begin.");
   const [isBusy, setIsBusy] = useState(false);
   const [jobTitle, setJobTitle] = useState("");
   const [company, setCompany] = useState("");
   const [jobDescription, setJobDescription] = useState("");
-  const gaps = analysis?.missing_skills ?? [];
-  const jobKeywords = useMemo(
-    () =>
-      ["Python", "FastAPI", "AWS", "Kubernetes", "Terraform", "PostgreSQL", "Redis", "RAG", "Observability", "Vector search"].filter((keyword) =>
-        jobDescription.toLowerCase().includes(keyword.toLowerCase())
-      ),
-    [jobDescription]
-  );
-  const matchScore = analysis ? Math.round(analysis.ats_score) : null;
-  const skillScore = analysis ? `${Math.round(analysis.skill_match_score)}%` : "--";
-  const experienceScore = analysis ? `${Math.round(analysis.experience_match_score)}%` : "--";
-  const recommendations = analysis?.recommendations ?? [];
-  const portfolioProjects = analysis?.portfolio_projects ?? [];
-  const certifications = analysis?.certifications ?? [];
-  const roadmap = analysis?.roadmap ?? [];
+  const [coachQuestion, setCoachQuestion] = useState("");
+  const [coachAnswer, setCoachAnswer] = useState("");
+  const [coachBusy, setCoachBusy] = useState(false);
+
+  const matchScore = analysis ? Math.round(analysis.ats_score) : 0;
+  const skillScore = analysis ? Math.round(analysis.skill_match_score) : 0;
+  const experienceScore = analysis ? Math.round(analysis.experience_match_score) : 0;
+  const currentStep = analysis ? 3 : resume ? 2 : 1;
+  const roleSignals = useMemo(() => ["Python", "FastAPI", "AWS", "Kubernetes", "Terraform", "PostgreSQL", "Redis", "RAG", "Observability", "Vector search"].filter(keyword => jobDescription.toLowerCase().includes(keyword.toLowerCase())), [jobDescription]);
 
   useEffect(() => {
-    const savedToken = window.localStorage.getItem("resume_analyzer_token");
-    if (savedToken) {
-      setToken(savedToken);
-      setStatus("Signed in. Upload a resume and paste a job description to analyze fit.");
-      void loadCurrentUser(savedToken);
-    }
+    const saved = window.localStorage.getItem("resume_analyzer_token");
+    if (saved) { setToken(saved); setStatus("Session restored. Add a resume and target role when you are ready."); void loadCurrentUser(saved); }
   }, []);
 
   async function loadCurrentUser(sessionToken: string) {
-    try {
-      const user = await getCurrentUser(sessionToken);
-      setCurrentUser(user);
-      setEmail(user.email);
-      setFullName(user.full_name);
-    } catch {
-      window.localStorage.removeItem("resume_analyzer_token");
-      setToken("");
-      setCurrentUser(null);
-      setStatus("Your session expired. Sign in again or use the demo account.");
-    }
+    try { const user = await getCurrentUser(sessionToken); setCurrentUser(user); setEmail(user.email); setFullName(user.full_name); }
+    catch { window.localStorage.removeItem("resume_analyzer_token"); setToken(""); setCurrentUser(null); setStatus("Your session expired. Sign in again or open the demo workspace."); }
   }
-
-  async function applySession(accessToken: string) {
-    window.localStorage.setItem("resume_analyzer_token", accessToken);
-    setToken(accessToken);
-    await loadCurrentUser(accessToken);
-    setStatus("Signed in. Upload a resume and paste a job description to analyze fit.");
-  }
-
+  async function applySession(accessToken: string) { window.localStorage.setItem("resume_analyzer_token", accessToken); setToken(accessToken); await loadCurrentUser(accessToken); setStatus("Workspace ready. Upload your resume to create a role report."); }
   async function handleAuth() {
-    const trimmedEmail = email.trim().toLowerCase();
-    const trimmedName = fullName.trim();
-    if (!trimmedEmail || !password || (authMode === "register" && !trimmedName)) {
-      setStatus("Enter your email, password, and name before continuing.");
-      return;
-    }
-    setIsBusy(true);
-    setStatus(authMode === "register" ? "Creating account..." : "Signing in...");
-    try {
-      if (authMode === "register") {
-        try {
-          await register(trimmedEmail, password, trimmedName);
-        } catch (error) {
-          if (error instanceof Error && error.message.toLowerCase().includes("already registered")) {
-            setAuthMode("login");
-            setStatus("That account already exists. Enter the correct password and sign in.");
-            return;
-          }
-          throw error;
-        }
-      }
-      const session = await login(trimmedEmail, password);
-      await applySession(session.access_token);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Authentication failed.");
-    } finally {
-      setIsBusy(false);
-    }
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password || (authMode === "register" && !fullName.trim())) { setStatus("Add your name, email, and password to continue."); return; }
+    setIsBusy(true); setStatus(authMode === "register" ? "Creating your workspace…" : "Signing you in…");
+    try { if (authMode === "register") await register(cleanEmail, password, fullName.trim()); const session = await login(cleanEmail, password); await applySession(session.access_token); }
+    catch (error) { setStatus(error instanceof Error ? error.message : "Authentication failed."); }
+    finally { setIsBusy(false); }
   }
-
   async function handleDemoLogin() {
-    setIsBusy(true);
-    setStatus("Opening demo workspace...");
-    try {
-      const session = await demoLogin();
-      await applySession(session.access_token);
-      setStatus("Demo account ready. Upload a resume and paste a job description to test the full workflow.");
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Demo login failed.");
-    } finally {
-      setIsBusy(false);
-    }
+    setIsBusy(true); setStatus("Opening the demo workspace…");
+    try { const session = await demoLogin(); await applySession(session.access_token); setJobTitle(sampleJob.title); setCompany(sampleJob.company); setJobDescription(sampleJob.description); setStatus("Demo ready with a sample role. Upload any resume to run the full analysis."); }
+    catch (error) { setStatus(error instanceof Error ? error.message : "Demo login failed."); }
+    finally { setIsBusy(false); }
   }
-
-  function handleFileSelection(file: File) {
-    setSelectedFile(file);
-    setFileName(file.name);
-    setResume(null);
-    setAnalysis(null);
-    setStatus("Resume selected. Click Upload Resume when you are ready.");
-  }
-
+  function selectFile(file: File) { setSelectedFile(file); setFileName(file.name); setResume(null); setAnalysis(null); setStatus("Resume selected. Upload it to extract your skills and experience."); }
   async function handleUpload() {
-    if (!selectedFile) {
-      setStatus("Choose a PDF, DOCX, TXT, or MD resume before uploading.");
-      return;
-    }
-    if (!token) {
-      setStatus("Sign in before uploading your resume.");
-      return;
-    }
-    setIsBusy(true);
-    setStatus("Uploading and parsing resume...");
-    try {
-      const uploaded = await uploadResume(selectedFile, token);
-      setResume(uploaded);
-      setStatus(`Resume uploaded: ${uploaded.filename}. Paste a job description and analyze.`);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Resume upload failed.");
-    } finally {
-      setIsBusy(false);
-    }
+    if (!selectedFile) { setStatus("Choose a PDF, DOCX, TXT, or MD resume first."); return; }
+    if (!token) { setStatus("Sign in before uploading your resume."); return; }
+    setIsBusy(true); setStatus("Securely parsing your resume…");
+    try { const uploaded = await uploadResume(selectedFile, token); setResume(uploaded); setStatus(`Resume ready: ${uploaded.filename}. Add a target role, then run the analysis.`); }
+    catch (error) { setStatus(error instanceof Error ? error.message : "Resume upload failed."); }
+    finally { setIsBusy(false); }
   }
-
   async function handleAnalyze() {
-    if (!token) {
-      setStatus("Sign in before running analysis.");
-      return;
-    }
-    if (!resume) {
-      setStatus("Upload a resume before running analysis.");
-      return;
-    }
-    if (!jobTitle || !jobDescription) {
-      setStatus("Add a job title and paste the job description before analyzing.");
-      return;
-    }
-    setIsBusy(true);
-    setStatus("Creating job and analyzing match...");
-    try {
-      const job = await createJob({ title: jobTitle, company, description: jobDescription }, token);
-      const result = await analyzeResume({ resume_id: resume.id, job_id: job.id }, token);
-      setAnalysis(result);
-      setAnalysisCount((count) => count + 1);
-      setStatus("Analysis complete. Review your scores, gaps, and recommendations.");
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Analysis failed.");
-    } finally {
-      setIsBusy(false);
-    }
+    if (!token || !resume || !jobTitle.trim() || !jobDescription.trim()) { setStatus("Complete sign-in, resume upload, job title, and job description first."); return; }
+    setIsBusy(true); setStatus("Mapping your evidence to the role…");
+    try { const job = await createJob({ title: jobTitle, company, description: jobDescription }, token); const result = await analyzeResume({ resume_id: resume.id, job_id: job.id }, token); setAnalysis(result); setStatus("Your role report is ready. Start with the highest-priority gaps below."); }
+    catch (error) { setStatus(error instanceof Error ? error.message : "Analysis failed."); }
+    finally { setIsBusy(false); }
   }
-
-  function resetAnalysis() {
-    setSelectedFile(null);
-    setFileName("No resume uploaded");
-    setResume(null);
-    setAnalysis(null);
-    setJobTitle("");
-    setCompany("");
-    setJobDescription("");
-    setStatus(token ? "Ready for a new resume and job match." : "Create an account or sign in to run a real match analysis.");
+  async function handleCoach() {
+    if (!resume || !token || !coachQuestion.trim()) return;
+    setCoachBusy(true); setCoachAnswer("");
+    try { const response = await askResumeCoach(resume.id, coachQuestion.trim(), token); setCoachAnswer(response.answer); }
+    catch (error) { setCoachAnswer(error instanceof Error ? error.message : "The coach could not answer that question."); }
+    finally { setCoachBusy(false); }
   }
+  function resetAnalysis() { setSelectedFile(null); setFileName("No file selected"); setResume(null); setAnalysis(null); setJobTitle(""); setCompany(""); setJobDescription(""); setCoachQuestion(""); setCoachAnswer(""); setStatus(token ? "Ready for a new role analysis." : "Sign in, add your resume, and choose a role to begin."); }
+  function signOut() { window.localStorage.removeItem("resume_analyzer_token"); setToken(""); setCurrentUser(null); setResume(null); setAnalysis(null); setPassword(""); setStatus("Signed out safely."); }
 
-  return (
-    <main className="app-shell">
-      <header className="border-b border-line bg-void/55 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+  return <main className="workspace">
+    <header className="workspace-header">
+      <div className="workspace-header-left"><Link className="brand" href="/"><span className="brand-mark"><Fingerprint /></span><span>RoleSignal</span></Link><div className="workspace-context"><strong>Match workspace</strong><span>Evidence-based career intelligence</span></div></div>
+      <div className="workspace-header-right"><span className="workspace-badge"><i /> Systems operational</span><Button className="secondary" onClick={resetAnalysis}><RotateCcw /> New analysis</Button></div>
+    </header>
+    <div className="workspace-layout">
+      <aside className="workspace-sidebar"><p className="side-label">Workspace</p><button className="side-link active"><LayoutDashboard /><span>Role analysis</span></button><button className="side-link"><History /><span>History</span><i className="side-count">Soon</i></button><button className="side-link"><MessageSquareText /><span>Resume coach</span></button><div className="sidebar-spacer" /><Link className="side-link" href="/"><ArrowLeft /><span>Back to site</span></Link>{token && <div className="account-chip"><strong>{currentUser?.full_name || "Signed in"}</strong><span>{currentUser?.email || email}</span><button className="signout" onClick={signOut}>Sign out</button></div>}</aside>
+      <section className="workspace-main">
+        <div className="workspace-title-row"><div><span className="kicker">Match intelligence</span><h1>Build your role report</h1><p>A guided, evidence-first view of how your resume performs.</p></div>{jobTitle && <div className="workspace-context"><strong>{jobTitle}</strong><span>{company || "Target role"}</span></div>}</div>
+        <div className="stepper">{["Add your resume", "Define the role", "Explore your report"].map((label, index) => { const n=index+1; return <div className={`step ${n<currentStep?"complete":""} ${n===currentStep?"current":""}`} key={label}><i>{n<currentStep?<Check />:n}</i><span>{label}</span></div>; })}</div>
+        <div className="status-bar" role="status"><Sparkles /> {status}</div>
+
+        <div className="workspace-grid">
           <div>
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-md border border-signal/35 bg-signal/10 text-signal">
-                <BrainCircuit className="h-5 w-5" />
-              </span>
-              <div>
-                <h1 className="text-2xl font-black">Am i a good match?</h1>
-                <p className="text-sm text-ink/60">Upload a resume, paste a job, and get a clear match score.</p>
-              </div>
-            </div>
-          </div>
-          <Button onClick={resetAnalysis}><Zap className="h-4 w-4" />New Analysis</Button>
-        </div>
-      </header>
-      <div className="data-ribbon" />
-      <div className="mx-auto grid max-w-7xl gap-5 px-6 py-6 lg:grid-cols-[310px_1fr]">
-        <aside className="space-y-4">
-          <Panel>
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 font-semibold"><LogIn className="h-4 w-4 text-signal" />Account</div>
-              <span className={`rounded-full px-2 py-1 text-xs font-bold ${token ? "bg-mint/15 text-mint" : "bg-gold/15 text-gold"}`}>
-                {token ? "Signed in" : "Required"}
-              </span>
-            </div>
-            {!token ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 rounded-md border border-line bg-white/5 p-1">
-                  {(["register", "login"] as const).map((item) => (
-                    <button
-                      className={`h-9 rounded text-sm font-bold ${authMode === item ? "bg-signal text-void" : "text-ink/60"}`}
-                      key={item}
-                      onClick={() => setAuthMode(item)}
-                    >
-                      {item === "register" ? "Register" : "Login"}
-                    </button>
-                  ))}
-                </div>
-                {authMode === "register" && <Input aria-label="Full name" placeholder="Full name" value={fullName} onChange={(event) => setFullName(event.target.value)} />}
-                <Input aria-label="Email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} />
-                <Input aria-label="Password" placeholder="At least 8 characters" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-                <Button className="w-full" disabled={isBusy} onClick={handleAuth}>
-                  {isBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Continue
-                </Button>
-                <button
-                  className="w-full rounded-md border border-signal/35 bg-signal/10 px-3 py-2 text-sm font-bold text-signal transition hover:bg-signal/15 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isBusy}
-                  onClick={handleDemoLogin}
-                >
-                  Use demo account
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3 text-sm text-ink/70">
-                <div className="rounded-md border border-line bg-white/5 p-3">
-                  <div className="font-bold text-ink">{currentUser?.full_name || "Signed in user"}</div>
-                  <div className="mt-1 text-xs text-ink/50">{currentUser?.email || email}</div>
-                </div>
-                <button
-                  className="text-sm font-bold text-signal"
-                  onClick={() => {
-                    window.localStorage.removeItem("resume_analyzer_token");
-                    setToken("");
-                    setCurrentUser(null);
-                    setPassword("");
-                    setResume(null);
-                    setAnalysis(null);
-                    setStatus("Signed out.");
-                  }}
-                >
-                  Sign out
-                </button>
-              </div>
-            )}
-          </Panel>
-          <Panel>
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 font-semibold"><UploadCloud className="h-4 w-4 text-signal" />Upload</div>
-              <span className="rounded-full bg-mint/15 px-2 py-1 text-xs font-bold text-mint">{resume ? "Uploaded" : "Ready"}</span>
-            </div>
-            <label className="group flex h-44 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-signal/35 bg-signal/[0.06] text-center text-sm transition hover:bg-signal/[0.11]">
-              <UploadCloud className="mb-3 h-8 w-8 text-signal transition group-hover:-translate-y-1" />
-              <span className="font-bold">Drop PDF or DOCX</span>
-              <span className="mt-1 text-xs text-ink/45">Encrypted ingest lane</span>
-              <input
-                className="hidden"
-                type="file"
-                accept=".pdf,.docx,.txt,.md"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    handleFileSelection(file);
-                  }
-                }}
-              />
-            </label>
-            <p className="mt-3 flex items-center gap-2 truncate text-sm font-medium"><FileText className="h-4 w-4 text-gold" />{fileName}</p>
-            {selectedFile && !resume && (
-              <div className="mt-3 space-y-2">
-                <p className="text-xs text-ink/45">{selectedFile.name} is selected but not uploaded yet.</p>
-                <Button className="w-full" disabled={isBusy} onClick={handleUpload}>
-                  {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-                  Upload Resume
-                </Button>
-              </div>
-            )}
-          </Panel>
-        </aside>
-        <section className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-4">
-            <Stat label="ATS Score" value={matchScore ?? "--"} />
-            <Stat label="Skill Match" value={skillScore} />
-            <Stat label="Analyses" value={analysisCount} />
-            <Stat label="Experience" value={experienceScore} />
-          </div>
-          <div className="rounded-md border border-line bg-white/[0.075] p-4 text-sm text-ink/75 backdrop-blur-xl">{status}</div>
-          <Panel>
-            <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-              <div>
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-bold uppercase text-signal">
-                      <BriefcaseBusiness className="h-4 w-4" />
-                      Job Match Lab
-                    </div>
-                    <h2 className="mt-2 text-2xl font-black">Paste a job description and analyze fit</h2>
-                  </div>
-                  <span className={`hidden rounded-full border px-3 py-1 text-xs font-bold sm:inline-flex ${resume ? "border-mint/30 bg-mint/10 text-mint" : "border-gold/30 bg-gold/10 text-gold"}`}>
-                    {resume ? "Resume linked" : "Upload resume first"}
-                  </span>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input aria-label="Job title" placeholder="Job title" value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} />
-                  <Input aria-label="Company" placeholder="Company optional" value={company} onChange={(event) => setCompany(event.target.value)} />
-                </div>
-                <div className="mt-3">
-                  <Textarea
-                    aria-label="Job description"
-                    value={jobDescription}
-                    onChange={(event) => setJobDescription(event.target.value)}
-                    placeholder="Paste the job description here..."
-                  />
-                </div>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <Button disabled={isBusy} onClick={handleAnalyze}>
-                    {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
-                    Analyze Match
-                  </Button>
-                  <span className="text-sm text-ink/55">Compares resume chunks against role requirements.</span>
-                </div>
-              </div>
-              <div className="rounded-md border border-line bg-void/45 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-bold text-signal">Match preview</div>
-                    <div className="mt-1 text-sm text-ink/55">{company || "Company"} · {jobTitle || "Job title"}</div>
-                  </div>
-                  <div className="grid h-20 w-20 place-items-center rounded-full border border-signal/35 bg-signal/10 text-2xl font-black text-signal">
-                    {matchScore ?? "--"}
-                  </div>
-                </div>
-                <div className="mt-5 h-2 rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-gradient-to-r from-accent via-gold to-mint" style={{ width: `${matchScore ?? 0}%` }} />
-                </div>
-                <div className="mt-5">
-                  <div className="mb-2 flex items-center gap-2 text-sm font-bold"><Target className="h-4 w-4 text-mint" />Detected role signals</div>
-                  <div className="flex flex-wrap gap-2">
-                    {jobKeywords.length ? jobKeywords.map((keyword) => (
-                      <span className="rounded-md border border-line bg-white/8 px-2.5 py-1.5 text-xs font-bold text-mint" key={keyword}>
-                        {keyword}
-                      </span>
-                    )) : <span className="text-xs text-ink/45">Paste a job description to detect role signals.</span>}
-                  </div>
-                </div>
-                {analysis ? (
-                  <div className="mt-5 space-y-2 text-sm text-ink/70">
-                    {analysis.strengths.slice(0, 2).map((item) => (
-                      <div className="rounded-md border border-mint/20 bg-mint/5 p-3" key={item}>{item}</div>
-                    ))}
-                    {analysis.weaknesses.slice(0, 2).map((item) => (
-                      <div className="rounded-md border border-gold/25 bg-gold/5 p-3" key={item}>{item}</div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mt-5 rounded-md border border-line bg-white/5 p-3 text-sm text-ink/55">
-                    Results appear here after you upload a resume, paste a job description,
-                    and run the match analysis.
-                  </div>
-                )}
-              </div>
-            </div>
-          </Panel>
-          {analysis ? (
-            <>
-              <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-                <Panel>
-                  <h2 className="text-lg font-bold">Missing Skills</h2>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {gaps.length ? gaps.map((gap) => <span className="rounded-md border border-line bg-white/8 px-3 py-2 text-sm font-medium text-signal" key={gap}>{gap}</span>) : (
-                      <span className="text-sm text-ink/50">No missing skills detected for this job.</span>
-                    )}
-                  </div>
-                  {gaps.length > 0 && (
-                    <div className="mt-5 space-y-2 text-sm text-ink/70">
-                      {gaps.slice(0, 4).map((gap) => (
-                        <div className="rounded-md border border-line bg-white/5 p-3" key={gap}>
-                          Add one resume bullet, project note, or certification that proves real {gap} experience.
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Panel>
-                <Panel>
-                  <h3 className="flex items-center gap-2 font-semibold"><ListChecks className="h-4 w-4 text-signal" />Recommendations</h3>
-                  <div className="mt-3 space-y-2 text-sm text-ink/72">
-                    {recommendations.map((item) => (
-                      <div className="flex gap-2 rounded-md border border-line bg-white/5 p-3" key={item}>
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
-              </div>
-              <div className="grid gap-5 lg:grid-cols-3">
-                <Panel>
-                  <h3 className="flex items-center gap-2 font-semibold"><Target className="h-4 w-4 text-mint" />Next Steps</h3>
-                  <div className="mt-3 space-y-2 text-sm text-ink/72">
-                    {roadmap.map((item) => (
-                      <div className="rounded-md border border-line bg-white/5 p-3" key={`${item.step}-${item.focus}`}>
-                        <div className="text-xs font-bold uppercase text-signal">Step {item.step}: {item.focus}</div>
-                        <div className="mt-1">{item.action}</div>
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
-                <Panel>
-                  <h3 className="flex items-center gap-2 font-semibold"><BriefcaseBusiness className="h-4 w-4 text-gold" />Portfolio Ideas</h3>
-                  <div className="mt-3 space-y-2 text-sm text-ink/72">
-                    {portfolioProjects.map((item) => (
-                      <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
-                    ))}
-                  </div>
-                </Panel>
-                <Panel>
-                  <h3 className="flex items-center gap-2 font-semibold"><Award className="h-4 w-4 text-signal" />Certifications</h3>
-                  <div className="mt-3 space-y-2 text-sm text-ink/72">
-                    {certifications.length ? certifications.map((item) => (
-                      <div className="rounded-md border border-line bg-white/5 p-3" key={item}>{item}</div>
-                    )) : (
-                      <div className="rounded-md border border-line bg-white/5 p-3">
-                        No specific certification gap was detected. Focus on measurable resume evidence first.
-                      </div>
-                    )}
-                  </div>
-                </Panel>
-              </div>
-            </>
-          ) : (
             <Panel>
-              <div className="flex items-start gap-3">
-                <Target className="mt-1 h-5 w-5 text-signal" />
-                <div>
-                  <h2 className="text-lg font-bold">Your match report will appear after analysis</h2>
-                  <p className="mt-2 text-sm text-ink/60">
-                    Upload a resume, paste the job description, then run analysis to see the real
-                    ATS score, missing skills, experience gaps, recommendations, project ideas,
-                    and certification guidance.
-                  </p>
-                </div>
-              </div>
+              <div className="surface-head"><div><span className="kicker">Input 01</span><h2>Your resume</h2><p>PDF, DOCX, TXT, or Markdown. Your document stays attached to your account.</p></div><span className="surface-number">{resume ? "READY" : "01"}</span></div>
+              <label className="upload-zone"><UploadCloud /><strong>{resume ? "Resume parsed successfully" : "Drop your resume or click to browse"}</strong><span>{resume ? `${resume.skills.length} skills extracted` : "Maximum 10 MB · readable text works best"}</span><input type="file" accept=".pdf,.docx,.txt,.md" onChange={event => { const file=event.target.files?.[0]; if(file) selectFile(file); }} /></label>
+              <div className="file-row"><FileText /> {fileName}</div>
+              {selectedFile && !resume && <div className="action-row"><Button disabled={isBusy} onClick={handleUpload}>{isBusy?<Loader2 className="spin"/>:<UploadCloud/>} Upload & parse</Button><span className="action-hint">Text is indexed for evidence-aware coaching.</span></div>}
             </Panel>
-          )}
-        </section>
-      </div>
-      <footer className="mx-auto max-w-7xl px-6 pb-6 text-right text-xs text-ink/35">
-        Built by Charles Appiah Manu
-      </footer>
-    </main>
-  );
+
+            <Panel style={{ marginTop: 18 } as React.CSSProperties}>
+              <div className="surface-head"><div><span className="kicker">Input 02</span><h2>Your target role</h2><p>Paste the full listing for a more accurate comparison.</p></div><button className="signout" onClick={() => { setJobTitle(sampleJob.title); setCompany(sampleJob.company); setJobDescription(sampleJob.description); }}>Load example role</button></div>
+              <div className="form-grid"><div><label className="field-label">Job title</label><Input aria-label="Job title" placeholder="e.g. Senior Backend Engineer" value={jobTitle} onChange={e=>setJobTitle(e.target.value)} /></div><div><label className="field-label">Company</label><Input aria-label="Company" placeholder="Optional" value={company} onChange={e=>setCompany(e.target.value)} /></div></div>
+              <label className="field-label">Job description</label><Textarea aria-label="Job description" placeholder="Paste the complete role description…" value={jobDescription} onChange={e=>setJobDescription(e.target.value)} />
+              <div className="action-row"><Button disabled={isBusy} onClick={handleAnalyze}>{isBusy?<Loader2 className="spin"/>:<WandSparkles/>} Generate role report</Button><span className="action-hint">{roleSignals.length ? `${roleSignals.length} technical signals detected` : "Signals appear as you add the role"}</span></div>
+            </Panel>
+          </div>
+
+          <aside>
+            {!token ? <Panel className="auth-card"><div className="surface-head"><div><span className="kicker">Your workspace</span><h2>Save your progress</h2><p>Sign in to securely analyze and revisit your resume.</p></div><LogIn /></div><div className="auth-toggle">{(["register","login"] as const).map(mode=><button className={authMode===mode?"active":""} key={mode} onClick={()=>setAuthMode(mode)}>{mode==="register"?"Create account":"Sign in"}</button>)}</div>{authMode==="register"&&<Input aria-label="Full name" placeholder="Full name" value={fullName} onChange={e=>setFullName(e.target.value)}/>}<Input aria-label="Email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)}/><div style={{height:8}}/><Input aria-label="Password" type="password" placeholder="At least 8 characters" value={password} onChange={e=>setPassword(e.target.value)}/><Button style={{width:"100%",marginTop:10}} disabled={isBusy} onClick={handleAuth}>{isBusy&&<Loader2 className="spin"/>} Continue</Button><button className="demo-button" disabled={isBusy} onClick={handleDemoLogin}>Explore with demo account</button></Panel> : <Panel><div className="surface-head"><div><span className="kicker">Evidence map</span><h2>Detected signals</h2><p>{roleSignals.length ? "Live requirements found in the target role." : "Add a job description to surface its signals."}</p></div><Target /></div><div className="gap-chips">{roleSignals.map(item=><span className="gap-chip" style={{background:"#f2f8dd",color:"#526b12",borderColor:"#c5d985"}} key={item}>{item}</span>)}</div></Panel>}
+            <Panel style={{marginTop:18} as React.CSSProperties}><div className="surface-head"><div><span className="kicker">Scoring model</span><h2>What we measure</h2></div><Gauge /></div><div className="result-list"><div className="result-item"><Check /> Role-specific skills and keyword coverage</div><div className="result-item"><Check /> Experience depth and evidence of impact</div><div className="result-item"><Check /> ATS structure and parsing confidence</div></div></Panel>
+          </aside>
+        </div>
+
+        <div className="metrics"><Stat label="Overall signal" value={analysis?`${matchScore}%`:"—"} percent={matchScore}/><Stat label="Skill alignment" value={analysis?`${skillScore}%`:"—"} percent={skillScore}/><Stat label="Experience fit" value={analysis?`${experienceScore}%`:"—"} percent={experienceScore}/></div>
+
+        {analysis ? <>
+          <Panel className="report-hero"><div className="report-score" style={{"--score":`${matchScore}%`} as React.CSSProperties}><strong>{matchScore}</strong><span>{matchScore>=80?"STRONG MATCH":matchScore>=60?"PROMISING":"NEEDS WORK"}</span></div><div className="report-copy"><span className="kicker">Your role report</span><h2>{jobTitle}{company?` at ${company}`:""}</h2><p>{matchScore>=80?"Your resume shows strong alignment. Tighten the remaining gaps and lead with your best evidence.":"You have a foundation to build on. The recommendations below are ordered by likely impact."}</p><div className="report-chips">{analysis.strengths.slice(0,4).map(item=><span key={item}>{item}</span>)}</div></div></Panel>
+          <div className="results-grid"><Panel><div className="surface-head"><div><span className="kicker">Priority gaps</span><h2>Signals to strengthen</h2></div><BarChart3 /></div><div className="gap-chips">{analysis.missing_skills.length?analysis.missing_skills.map(item=><span className="gap-chip" key={item}>{item}</span>):<span className="action-hint">No missing technical skills detected.</span>}</div><div className="result-list" style={{marginTop:16}}>{analysis.weaknesses.map(item=><div className="result-item" key={item}><CircleHelp/>{item}</div>)}</div></Panel><Panel><div className="surface-head"><div><span className="kicker">Recommended actions</span><h2>Highest-impact changes</h2></div><Target /></div><div className="result-list">{analysis.recommendations.map(item=><div className="result-item" key={item}><Check/>{item}</div>)}</div></Panel></div>
+          <div className="results-grid"><Panel><div className="surface-head"><div><span className="kicker">Action plan</span><h2>Your improvement roadmap</h2></div></div><div className="roadmap">{analysis.roadmap.map(item=><div className="roadmap-item" key={`${item.step}-${item.focus}`}><div><strong>{item.focus}</strong><p>{item.action}</p></div></div>)}</div></Panel><Panel><div className="surface-head"><div><span className="kicker">Proof builders</span><h2>Portfolio & credentials</h2></div></div><div className="result-list">{analysis.portfolio_projects.map(item=><div className="result-item" key={item}><Sparkles/>{item}</div>)}{analysis.certifications.map(item=><div className="result-item" key={item}><Check/>{item}</div>)}</div></Panel></div>
+          <Panel className="coach"><div className="surface-head"><div><span className="kicker">Grounded in your resume</span><h2>Ask the resume coach</h2><p>RoleSignal retrieves relevant evidence from your uploaded resume before answering.</p></div><BrainCircuit /></div><div className="coach-form"><Input aria-label="Question for resume coach" placeholder="What is the strongest evidence I have for this role?" value={coachQuestion} onChange={e=>setCoachQuestion(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")void handleCoach();}}/><Button disabled={coachBusy||!coachQuestion.trim()} onClick={handleCoach}>{coachBusy?<Loader2 className="spin"/>:<MessageSquareText/>} Ask coach</Button></div>{coachAnswer&&<div className="coach-answer">{coachAnswer}</div>}</Panel>
+        </> : <Panel className="empty-report"><BrainCircuit /><h2>Your role report will appear here</h2><p>Complete the three steps above to unlock match scoring, evidence gaps, a prioritized roadmap, portfolio ideas, and grounded resume coaching.</p></Panel>}
+      </section>
+    </div>
+  </main>;
 }

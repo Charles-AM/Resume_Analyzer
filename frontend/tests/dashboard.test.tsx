@@ -3,12 +3,11 @@ import Dashboard from "@/app/dashboard/page";
 
 test("renders dashboard metrics", () => {
   render(<Dashboard />);
-  expect(screen.getByText("Am i a good match?")).toBeInTheDocument();
-  expect(screen.getByText("Account")).toBeInTheDocument();
-  expect(screen.getByText("Use demo account")).toBeInTheDocument();
-  expect(screen.getByText("Job Match Lab")).toBeInTheDocument();
+  expect(screen.getByText("RoleSignal")).toBeInTheDocument();
+  expect(screen.getByText("Build your role report")).toBeInTheDocument();
+  expect(screen.getByText("Explore with demo account")).toBeInTheDocument();
+  expect(screen.getByText("Your target role")).toBeInTheDocument();
   expect(screen.getByLabelText("Job description")).toBeInTheDocument();
-  expect(screen.getByText("ATS Score")).toBeInTheDocument();
-  expect(screen.getAllByText("--")).toHaveLength(4);
-  expect(screen.getByText("Your match report will appear after analysis")).toBeInTheDocument();
+  expect(screen.getByText("Overall signal")).toBeInTheDocument();
+  expect(screen.getByText("Your role report will appear here")).toBeInTheDocument();
 });

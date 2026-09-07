@@ -1,14 +1,27 @@
-# Am i a good match?
+# RoleSignal
 
-Resume and job-match intelligence platform demonstrating modern software engineering,
-data engineering, AI engineering, and DevOps practices.
+**Know your fit. Close the gap.**
+
+RoleSignal is an evidence-driven career intelligence product that turns a resume
+and job description into a transparent match report and prioritized action plan.
+It is also a production-minded demonstration of modern product design, full-stack
+engineering, data engineering, AI engineering, and DevOps practice.
 
 Users register, sign in, or use the demo account, then upload a resume and paste a
 job description. The system extracts text from PDF/DOCX/TXT/MD files, runs ETL,
 stores structured resume data, chunks resume content, creates embeddings, analyzes
 candidate-job fit, and returns practical guidance: ATS score, skill match,
 experience match, missing skills, weaknesses, strengths, next steps,
-certifications, and portfolio project ideas.
+certifications, portfolio project ideas, and retrieval-grounded resume coaching.
+
+## Product Experience
+
+- A focused, animated product story with a responsive marketing experience.
+- A guided three-step analysis workspace instead of a generic dashboard.
+- One-click demo authentication and a realistic example role for fast evaluation.
+- Transparent score components and human-readable evidence gaps.
+- A RAG-backed coach that retrieves relevant resume chunks before answering.
+- Reduced-motion support, keyboard-friendly controls, and responsive layouts.
 
 The live deployment is designed for:
 
