@@ -10,7 +10,9 @@
 
 Netlify is the single user-facing link. The frontend calls `/api/v1/*`, and the explicit
 proxy in `frontend/netlify.toml` forwards those requests to the Render backend. The
-`BACKEND_URL` rewrite in `frontend/next.config.ts` remains available for other hosts.
+published `frontend/public/_redirects` file provides the same rule for monorepo
+configurations that do not discover the package TOML. The `BACKEND_URL` rewrite in
+`frontend/next.config.ts` remains available for other hosts.
 
 ## Backend Environment
 

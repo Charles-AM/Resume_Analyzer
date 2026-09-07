@@ -1,0 +1,4 @@
+# Same-origin API proxy. Keep this in the published output so the rule works
+# even when Netlify's monorepo settings do not discover frontend/netlify.toml.
+/api/v1/* https://am-i-a-good-match-api.onrender.com/api/v1/:splat 200!
+/backend-health https://am-i-a-good-match-api.onrender.com/health 200!
