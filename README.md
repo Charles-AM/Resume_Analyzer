@@ -1,8 +1,8 @@
-# RoleSignal
+# Am I a Good Match?
 
 **Know your fit. Close the gap.**
 
-RoleSignal is an evidence-driven career intelligence product that turns a resume
+Am I a Good Match? is an evidence-driven career intelligence product that turns a resume
 and job description into a transparent match report and prioritized action plan.
 It is also a production-minded demonstration of modern product design, full-stack
 engineering, data engineering, AI engineering, and DevOps practice.
