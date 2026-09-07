@@ -1,139 +1,74 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, Gauge, Network, ShieldCheck, Sparkles, UploadCloud } from "lucide-react";
+import { ArrowRight, BrainCircuit, Check, FileSearch, Fingerprint, Gauge, Layers3, MoveUpRight, ScanSearch, Sparkles, Target } from "lucide-react";
 
-const capabilities = [
-  { label: "Upload pipeline", Icon: UploadCloud, value: "PDF + DOCX" },
-  { label: "ATS analytics", Icon: BarChart3, value: "Fit scoring" },
-  { label: "Secure accounts", Icon: ShieldCheck, value: "Protected" }
+const signals = [
+  { label: "Role alignment", value: "92%", tone: "cyan" },
+  { label: "Skills evidence", value: "86%", tone: "violet" },
+  { label: "ATS readiness", value: "94%", tone: "lime" },
 ];
+const features = [
+  { number: "01", icon: FileSearch, title: "Parse the whole story", copy: "RoleSignal reads PDF and DOCX resumes into structured experience, skills, projects, and measurable outcomes." },
+  { number: "02", icon: ScanSearch, title: "Map evidence to the role", copy: "Every requirement is compared against the evidence in your resume—not just repeated keywords." },
+  { number: "03", icon: Target, title: "Know what to change", copy: "Get a prioritized action plan, portfolio ideas, and an AI coach grounded in your actual resume." },
+];
+const stack = ["Next.js", "TypeScript", "FastAPI", "PostgreSQL", "Redis", "RAG", "Vector search", "Docker"];
 
-const scoringSteps = [
-  {
-    number: "1",
-    title: "What the system can read",
-    copy: "The checker extracts text from your resume and looks for structured signals like contact details, skills, education, projects, and experience. The easier your resume is to parse, the more confidently it can be compared with a job description."
-  },
-  {
-    number: "2",
-    title: "How well your resume matches the job",
-    copy: "Your resume is compared with the exact role you paste in. The score considers required skills, keywords, years of experience, seniority language, and evidence that you have done similar work before."
-  },
-  {
-    number: "3",
-    title: "What you can improve",
-    copy: "After analysis, the app shows missing skills, strengths, weaknesses, and recommendations so you know which keywords, projects, certifications, or resume bullets to improve."
-  }
-];
+function Brand() {
+  return <a className="brand" href="/" aria-label="RoleSignal home"><span className="brand-mark"><Fingerprint aria-hidden="true" /></span><span>RoleSignal</span></a>;
+}
 
 export default function Home() {
-  return (
-    <main className="app-shell">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-3 text-lg font-bold">
-          <span className="grid h-9 w-9 place-items-center rounded-md border border-signal/40 bg-signal/15 text-signal shadow-[0_0_30px_rgba(124,227,255,0.2)]">
-            <Sparkles className="h-5 w-5" />
-          </span>
-          Am i a good match?
+  return <main className="site-shell">
+    <nav className="site-nav">
+      <Brand />
+      <div className="nav-links"><a href="#how-it-works">How it works</a><a href="#intelligence">Intelligence</a><a href="#technology">Technology</a></div>
+      <Link className="button button-small button-dark" href="/dashboard">Open workspace <ArrowRight /></Link>
+    </nav>
+
+    <section className="hero">
+      <div className="hero-orb hero-orb-one" /><div className="hero-orb hero-orb-two" />
+      <div className="hero-copy reveal">
+        <div className="eyebrow"><Sparkles /> AI-powered career intelligence</div>
+        <h1>Know your fit.<br /><span>Close the gap.</span></h1>
+        <p>See exactly how your resume reads against any role—and turn every missing signal into a practical next move.</p>
+        <div className="hero-actions">
+          <Link className="button button-primary" href="/dashboard">Analyze your resume <ArrowRight /></Link>
+          <a className="text-link" href="#how-it-works">See how it works <MoveUpRight /></a>
         </div>
-        <div className="flex gap-2">
-          <Link className="rounded-md border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-signal/50" href="/dashboard">
-            Sign in
-          </Link>
-          <Link className="rounded-md bg-signal px-4 py-2 text-sm font-semibold text-void shadow-[0_0_28px_rgba(124,227,255,0.22)] transition hover:bg-mint" href="/dashboard">
-            Start matching
-          </Link>
-        </div>
-      </nav>
-      <div className="data-ribbon" />
-      <section className="mx-auto grid min-h-[calc(100vh-90px)] max-w-7xl items-center gap-8 px-6 py-8 lg:grid-cols-[1fr_1.05fr]">
-        <div className="float-in">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-white/5 px-3 py-2 text-sm text-signal">
-            <Network className="h-4 w-4" />
-            Resume-to-job match scoring
-          </div>
-          <h1 className="max-w-3xl text-5xl font-black leading-tight text-ink md:text-7xl">
-            Am i a good match?
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-ink/70">
-            Upload your resume, paste a job description, and see your ATS score, skill match, experience match, gaps, and next steps.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link className="inline-flex h-11 items-center gap-2 rounded-md bg-signal px-5 text-sm font-bold text-void shadow-[0_0_34px_rgba(124,227,255,0.28)] transition hover:-translate-y-0.5 hover:bg-mint" href="/dashboard">
-              Start matching <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="mt-10 grid gap-3 sm:grid-cols-2">
-            {capabilities.map(({ label, Icon, value }, index) => (
-              <div key={label} className="holo-card rounded-md border border-line bg-white/[0.07] p-4 backdrop-blur-xl" style={{ animationDelay: `${index * 90}ms` }}>
-                <div className="flex items-center justify-between gap-3">
-                  <Icon className="h-5 w-5 text-signal" />
-                  <span className="text-xs font-semibold text-mint">{value}</span>
-                </div>
-                <div className="mt-4 font-semibold">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="float-in rounded-md border border-line bg-white/[0.075] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.38)] backdrop-blur-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold text-signal">Live fit analysis</div>
-              <div className="mt-1 text-2xl font-black">Your resume vs. the job</div>
-            </div>
-            <div className="relative grid h-24 w-24 place-items-center rounded-full border border-signal/30 bg-signal/10">
-              <Gauge className="h-8 w-8 text-signal" />
-            </div>
-          </div>
-          <div className="mt-6 grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-md border border-line bg-void/40 p-4 font-semibold text-signal">ATS score</div>
-            <div className="rounded-md border border-line bg-void/40 p-4 font-semibold text-mint">Skill match</div>
-            <div className="rounded-md border border-line bg-void/40 p-4 font-semibold text-gold">Experience fit</div>
-          </div>
-          <div className="mt-6 space-y-3">
-            {["Upload a PDF or DOCX resume", "Paste the exact job description", "Get scoring and targeted recommendations"].map((item, index) => (
-              <div key={item} className="flex items-center gap-3 rounded-md border border-line bg-white/5 p-3 text-sm">
-                <span className="pulse-node h-2.5 w-2.5 rounded-full bg-signal" style={{ animationDelay: `${index * 140}ms` }} />
-                {item}
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 overflow-hidden rounded-md border border-line bg-void/45 p-4">
-            <div className="mb-3 flex items-center justify-between text-xs text-ink/55">
-              <span>Result generated after analysis</span>
-            </div>
-            <div className="h-2 rounded-full bg-white/10">
-              <div className="h-full w-0 rounded-full bg-gradient-to-r from-signal via-mint to-gold" />
+        <div className="trust-row"><div className="trust-avatars" aria-hidden="true"><i>C</i><i>M</i><i>R</i><i>+</i></div><span>Built for candidates who want an honest signal, not generic advice.</span></div>
+      </div>
+
+      <div className="product-stage reveal reveal-delay" aria-label="RoleSignal product preview">
+        <div className="stage-glow" />
+        <div className="app-window">
+          <div className="window-bar"><div className="window-dots"><i /><i /><i /></div><span>Match intelligence</span><span className="live-pill"><i /> Live analysis</span></div>
+          <div className="window-body">
+            <aside className="window-sidebar"><div className="mini-brand"><Fingerprint /> RS</div>{[Layers3, Gauge, BrainCircuit].map((Icon, index) => <span className={index === 1 ? "active" : ""} key={index}><Icon /></span>)}</aside>
+            <div className="window-content">
+              <div className="preview-heading"><div><small>ROLE REPORT</small><h3>Senior Product Engineer</h3><p>Northstar Labs · New York, NY</p></div><div className="score-ring"><span>89</span><small>STRONG</small></div></div>
+              <div className="signal-grid">{signals.map(signal => <div className="signal-card" key={signal.label}><div><span>{signal.label}</span><strong>{signal.value}</strong></div><div className="signal-track"><i className={signal.tone} style={{ width: signal.value }} /></div></div>)}</div>
+              <div className="evidence-card"><div className="evidence-head"><span>Evidence map</span><small>8 of 10 signals found</small></div><div className="skill-cloud">{["React", "System design", "TypeScript", "AWS", "Product thinking", "Analytics"].map((skill, index) => <span className={index > 3 ? "skill-gap" : "skill-hit"} key={skill}>{index < 4 && <Check />} {skill}</span>)}</div></div>
             </div>
           </div>
         </div>
-      </section>
-      <section className="border-t border-line bg-white/[0.035]">
-        <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[0.8fr_1.2fr]">
-          <div>
-            <div className="text-sm font-bold uppercase text-signal">How the score works</div>
-            <h2 className="mt-3 text-3xl font-black md:text-4xl">Built for real resume checks, not generic advice.</h2>
-            <p className="mt-4 leading-7 text-ink/68">
-              Many companies use applicant tracking systems before a recruiter reads your resume. Those systems scan for readable content, role-specific keywords, and evidence that your background matches the job. This app follows the same idea: it checks how understandable your resume is, compares it with the job you paste in, and gives you a focused action list.
-            </p>
-          </div>
-          <div className="grid gap-4">
-            {scoringSteps.map((step) => (
-              <div className="rounded-md border border-line bg-void/40 p-5" key={step.number}>
-                <div className="flex gap-4">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-signal text-sm font-black text-void">{step.number}</span>
-                  <div>
-                    <h3 className="font-bold">{step.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-ink/65">{step.copy}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      <footer className="mx-auto max-w-7xl px-6 py-5 text-right text-xs text-ink/35">
-        Built by Charles Appiah Manu
-      </footer>
-    </main>
-  );
+        <div className="floating-note note-one"><span>+14%</span> after 3 fixes</div><div className="floating-note note-two"><BrainCircuit /> Evidence, not guesswork</div>
+      </div>
+    </section>
+
+    <section className="ticker"><div>{[...stack, ...stack].map((item, index) => <span key={`${item}-${index}`}>{item}<i /></span>)}</div></section>
+
+    <section className="section-block" id="how-it-works">
+      <div className="section-intro"><div><span className="section-kicker">A clearer path forward</span><h2>From application anxiety<br />to an action plan.</h2></div><p>Three focused steps turn a static document and a job listing into a living map of your candidacy.</p></div>
+      <div className="feature-grid">{features.map(({ number, icon: Icon, title, copy }) => <article className="feature-card" key={number}><div className="feature-top"><span>{number}</span><Icon /></div><h3>{title}</h3><p>{copy}</p><div className="card-line" /></article>)}</div>
+    </section>
+
+    <section className="intelligence-section" id="intelligence"><div className="intelligence-card">
+      <div className="intelligence-copy"><span className="section-kicker light">Built differently</span><h2>Your resume is more than a bag of keywords.</h2><p>RoleSignal combines structured parsing, semantic retrieval, deterministic scoring, and evidence-aware coaching for feedback you can inspect and act on.</p><ul><li><Check /> Transparent scoring across skills, experience, and ATS structure</li><li><Check /> Retrieval-grounded coaching from your own resume</li><li><Check /> Concrete project ideas for hard-to-prove skills</li></ul><Link className="button button-light" href="/dashboard">Explore the workspace <ArrowRight /></Link></div>
+      <div className="intelligence-visual"><div className="orbit orbit-one"><span /></div><div className="orbit orbit-two"><span /></div><div className="core"><Fingerprint /><strong>Your<br />signal</strong></div><span className="node node-one">Experience</span><span className="node node-two">Skills</span><span className="node node-three">Impact</span></div>
+    </div></section>
+
+    <section className="technology-section" id="technology"><div><span className="section-kicker">Under the hood</span><h2>A real product stack.<br />Not a polished mockup.</h2></div><div className="tech-list">{[["01","Intelligence","Semantic search · embeddings · RAG"],["02","Application","Next.js · TypeScript · accessible UI"],["03","Platform","FastAPI · PostgreSQL · Redis · Celery"],["04","Delivery","Docker · CI checks · cloud-ready services"]].map(([n,title,copy]) => <div key={n}><span>{n}</span><strong>{title}</strong><p>{copy}</p><MoveUpRight /></div>)}</div></section>
+    <section className="final-cta"><div><span className="section-kicker light">Your next application starts here</span><h2>Stop guessing.<br />Start with a signal.</h2></div><Link className="button button-light button-large" href="/dashboard">Run a free analysis <ArrowRight /></Link></section>
+    <footer className="site-footer"><Brand /><p>Career intelligence, designed and engineered by Charles Appiah Manu.</p><span>© 2026 RoleSignal</span></footer>
+  </main>;
 }

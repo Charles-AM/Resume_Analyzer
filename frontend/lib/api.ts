@@ -43,6 +43,11 @@ export type UserRead = {
   role: string;
 };
 
+export type CoachResponse = {
+  answer: string;
+  sources: { resume_id: string; chunk_id: string; score: number }[];
+};
+
 export async function api<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -143,5 +148,12 @@ export async function analyzeResume(
   return api<Analysis>("/analyze", {
     method: "POST",
     body: JSON.stringify(payload)
+  }, token);
+}
+
+export async function askResumeCoach(resumeId: string, question: string, token: string) {
+  return api<CoachResponse>("/chat", {
+    method: "POST",
+    body: JSON.stringify({ resume_id: resumeId, question, top_k: 5 })
   }, token);
 }
